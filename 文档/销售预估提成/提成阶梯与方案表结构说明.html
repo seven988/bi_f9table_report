@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>提成阶梯与方案表结构说明</title>
+    <!-- 引入 Mermaid.js -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: #f5f7fc;
+            color: #1e293b;
+            padding: 40px 20px;
+            line-height: 1.7;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.06);
+            padding: 50px 55px;
+        }
+
+        .doc-header {
+            border-bottom: 3px solid #eef2f7;
+            padding-bottom: 25px;
+            margin-bottom: 35px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            flex-wrap: wrap;
+        }
+
+        .doc-header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            color: #0f172a;
+            letter-spacing: -0.3px;
+        }
+
+        .doc-header .subtitle {
+            font-size: 16px;
+            color: #64748b;
+            margin-top: 4px;
+            font-weight: 400;
+        }
+
+        .doc-header .meta {
+            text-align: right;
+            color: #94a3b8;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .doc-header .meta strong {
+            color: #475569;
+        }
+
+        h2 {
+            font-size: 22px;
+            font-weight: 600;
+            color: #0f172a;
+            margin-top: 40px;
+            margin-bottom: 18px;
+            padding-left: 14px;
+            border-left: 5px solid #3b82f6;
+        }
+
+        h3 {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1e293b;
+            margin-top: 28px;
+            margin-bottom: 12px;
+        }
+
+        p {
+            margin-bottom: 12px;
+            color: #334155;
+        }
+
+        .table-wrap {
+            overflow-x: auto;
+            margin: 18px 0 10px;
+            border-radius: 14px;
+            border: 1px solid #e9edf4;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        table thead {
+            background: #f1f5f9;
+        }
+
+        table th {
+            text-align: left;
+            padding: 12px 16px;
+            font-weight: 600;
+            color: #1e293b;
+            font-size: 13px;
+            letter-spacing: 0.3px;
+            border-bottom: 2px solid #dce1ea;
+        }
+
+        table td {
+            padding: 11px 16px;
+            border-bottom: 1px solid #eef2f7;
+            vertical-align: top;
+            color: #1e293b;
+        }
+
+        table tbody tr:hover {
+            background: #fafcff;
+        }
+
+        table .col-field {
+            font-family: "SF Mono", Menlo, Consolas, monospace;
+            font-size: 13px;
+            color: #0f172a;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        table .col-type {
+            font-family: "SF Mono", Menlo, Consolas, monospace;
+            font-size: 12px;
+            color: #64748b;
+            white-space: nowrap;
+        }
+
+        table .col-desc {
+            color: #334155;
+        }
+
+        table .col-example {
+            font-size: 12px;
+            color: #64748b;
+        }
+
+        .highlight-box {
+            background: #f1f5f9;
+            border-left: 4px solid #3b82f6;
+            padding: 16px 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+
+        .highlight-box strong {
+            color: #0f172a;
+        }
+
+        .rel-diagram {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+            background: #fafcff;
+            padding: 20px;
+            border-radius: 14px;
+            border: 1px solid #e9edf4;
+            margin: 16px 0;
+        }
+
+        .rel-box {
+            background: #ffffff;
+            border: 2px solid #3b82f6;
+            border-radius: 12px;
+            padding: 12px 20px;
+            font-weight: 600;
+            color: #0f172a;
+            min-width: 140px;
+            text-align: center;
+        }
+
+        .rel-arrow {
+            font-size: 28px;
+            color: #94a3b8;
+            font-weight: 300;
+        }
+
+        .rel-label {
+            font-size: 13px;
+            color: #475569;
+            background: #eef2f7;
+            padding: 2px 10px;
+            border-radius: 20px;
+        }
+
+        .tag {
+            display: inline-block;
+            background: #dbeafe;
+            color: #1d4ed8;
+            font-size: 12px;
+            font-weight: 600;
+            padding: 0 10px;
+            border-radius: 30px;
+            line-height: 24px;
+            margin: 0 4px 4px 0;
+        }
+
+        .tag.green {
+            background: #dcfce7;
+            color: #15803d;
+        }
+
+        .tag.purple {
+            background: #ede9fe;
+            color: #7c3aed;
+        }
+
+        .tag.orange {
+            background: #fef3c7;
+            color: #b45309;
+        }
+
+        .footnote {
+            font-size: 13px;
+            color: #94a3b8;
+            margin-top: 20px;
+            border-top: 1px solid #eef2f7;
+            padding-top: 14px;
+        }
+
+        .mermaid-container {
+            background: #fafcff;
+            border: 1px solid #e9edf4;
+            border-radius: 14px;
+            padding: 20px;
+            margin: 16px 0;
+            display: flex;
+            justify-content: center;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 25px 18px;
+            }
+            .doc-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .doc-header .meta {
+                text-align: left;
+                margin-top: 10px;
+            }
+            .rel-diagram {
+                flex-direction: column;
+                gap: 10px;
+            }
+            .rel-arrow {
+                transform: rotate(90deg);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+
+        <!-- ========== 文档头部 ========== -->
+        <div class="doc-header">
+            <div>
+                <h1>📋 提成阶梯与方案表结构说明</h1>
+                <div class="subtitle">Zj_CommissionScheme &amp; Zj_CommissionLadder 字段、关联及业务场景</div>
+            </div>
+            <div class="meta">
+                <strong>版本</strong> V1.1<br />
+                <strong>更新</strong> 2026-06-29<br />
+                <strong>数据库</strong> SQL Server
+            </div>
+        </div>
+
+        <!-- ========== 概述 ========== -->
+        <h2>一、概述</h2>
+        <p>
+            在提成计算系统中，<strong>提成方案表</strong>（<code>Zj_CommissionScheme</code>）和<strong>提成阶梯表</strong>（<code>Zj_CommissionLadder</code>）是核心的基础配置表。方案表定义了“谁”适用“什么规则”（如业务员、客服、公司/个人业务），阶梯表则定义了“具体金额区间”对应“多少提成比例”。两者通过 <code>Ladder_Id</code> 字段关联，共同构成完整的提成规则体系。
+        </p>
+        <p>
+            本说明文档详细列出了两张表的所有字段、数据类型、业务含义及示例值，并说明了它们在 <strong>销售提成（单笔匹配）</strong> 和 <strong>客服提成（累计分段）</strong> 两种场景下的不同用法。
+        </p>
+
+        <!-- ========== 二、提成方案表 ========== -->
+        <h2>二、提成方案表（Zj_CommissionScheme）</h2>
+        <p>
+            该表存储提成方案的头部信息，包括方案名称、适用人员类型（业务员/客服）、计算方式（单笔/累计）、适用业务大类、适用接单公司列表、有效期等。
+        </p>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th style="min-width:120px;">字段名</th>
+                        <th style="min-width:100px;">数据类型</th>
+                        <th>含义</th>
+                        <th style="min-width:100px;">示例值</th>
+                        <th style="min-width:160px;">备注</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="col-field">Ladder_Id</td>
+                        <td class="col-type">INT</td>
+                        <td class="col-desc">阶梯方案ID</td>
+                        <td class="col-example">1001</td>
+                        <td>外键，关联 <code>Zj_CommissionLadder</code></td>
+                    </tr>
+                    <tr>
+                        <td class="col-field">SchemeName</td>
+                        <td class="col-type">NVARCHAR(100)</td>
+                        <td class="col-desc">方案名称</td>
+                        <td class="col-example">华东区销售提成方案</td>
+                        <td>便于识别</td>
+                    </tr>
+                    <tr>
+                        <td class="col-field">SchemeType</td>
+                        <td class="col-type">VARCHAR(20)</td>
+                        <td class="col-desc">方案类型</td>
+                        <td class="col-example">SALER / SERVICE</td>
+                        <td><span class="tag">SALER</span> 业务员 <span class="tag purple">SERVICE</span> 客服</td>
+                    </tr>
+                    <tr>
+                        <td class="col-field">CalcType</td>
+                        <td class="col-type">VARCHAR(20)</td>
+                        <td class="col-desc">计算方式</td>
+                        <td class="col-example">SINGLE / CUMULATIVE</td>
+                        <td><span class="tag green">SINGLE</span> 单笔匹配 <span class="tag orange">CUMULATIVE</span> 累计分段</td>
+                    </tr>
+                    <tr>
+                        <td class="col-field">BusinessType</td>
+                        <td class="col-type">NVARCHAR(50)</td>
+                        <td class="col-desc">业务大类</td>
+                        <td class="col-example">跨境电商</td>
+                        <td>匹配 <code>Cost.BusWay</code> 或转换后的业务大类</td>
+                    </tr>
+                    <tr>
+                        <td class="col-field">IsCompanyBusiness</td>
+                        <td class="col-type">BIT</td>
+                        <td class="col-desc">公司/个人业务标识</td>
+                        <td class="col-example">1（公司业务）</td>
+                        <td><strong>客服提成专用</strong>，1=公司业务，0=个人业务</td>
+                    </tr>
+                    <tr>
+                        <td class="col-field">CtrlOffice</td>
+                        <td class="col-type">NVARCHAR(500)</td>
+                        <td class="col-desc">适用接单公司列表</td>
+                        <td class="col-example">上海分公司,宁波分公司</td>
+                        <td>逗号分隔，支持多个公司</td>
+                    </tr>
+                    <tr>
+                        <td class="col-field">Status</td>
+                        <td class="col-type">BIT</td>
+                        <td class="col-desc">启用状态</td>
+                        <td class="col-example">1</td>
+                        <td>1=启用，0=停用</td>
+                    </tr>
+                    <tr>
+                        <td class="col-field">EffectiveDate</td>
+                        <td class="col-type">DATETIME</td>
+                        <td class="col-desc">生效日期</td>
+                        <td class="col-example">2026-01-01</td>
+                        <td>NULL 表示无限制</td>
+                    </tr>
+                    <tr>
+                        <td class="col-field">ExpirationDate</td>
+                        <td class="col-type">DATETIME</td>
+                        <td class="col-desc">失效日期</td>
+                        <td class="col-example">2026-12-31</td>
+                        <td>NULL 表示无限制</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- ========== 三、提成阶梯表 ========== -->
+        <h2>三、提成阶梯表（Zj_CommissionLadder）</h2>
+        <p>
+            该表存储具体的阶梯档位，每个阶梯属于某个方案（<code>Ladder_Id</code>），包含金额区间（MinAmount ~ MaxAmount）和对应的提成比例（CommissionRate），以及排序序号。
+        </p>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th style="min-width:120px;">字段名</th>
+                        <th style="min-width:100px;">数据类型</th>
+                        <th>含义</th>
+                        <th style="min-width:100px;">示例值</th>
+                        <th style="min-width:160px;">备注</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="col-field">Ladder_Id</td>
+                        <td class="col-type">INT</td>
+                        <td class="col-desc">阶梯方案ID</td>
+                        <td class="col-example">1001</td>
+                        <td>外键，关联方案表</td>
+                    </tr>
+                    <tr>
+                        <td class="col-field">LadderSeq</td>
+                        <td class="col-type">INT</td>
+                        <td class="col-desc">阶梯序号</td>
+                        <td class="col-example">1, 2, 3</td>
+                        <td>用于排序，决定匹配优先级</td>
+                    </tr>
+                    <tr>
+                        <td class="col-field">LadderName</td>
+                        <td class="col-type">NVARCHAR(50)</td>
+                        <td class="col-desc">阶梯名称</td>
+                        <td class="col-example">高档</td>
+                        <td>便于识别，如“低档”、“中档”、“高档”</td>
+                    </tr>
+                    <tr>
+                        <td class="col-field">MinAmount</td>
+                        <td class="col-type">DECIMAL(18,2)</td>
+                        <td class="col-desc">区间最小金额</td>
+                        <td class="col-example">0.00</td>
+                        <td><strong>含</strong>（左闭），NULL 视为 0</td>
+                    </tr>
+                    <tr>
+                        <td class="col-field">MaxAmount</td>
+                        <td class="col-type">DECIMAL(18,2)</td>
+                        <td class="col-desc">区间最大金额</td>
+                        <td class="col-example">10000.00</td>
+                        <td><strong>不含</strong>（右开），NULL 视为无穷大</td>
+                    </tr>
+                    <tr>
+                        <td class="col-field">CommissionRate</td>
+                        <td class="col-type">DECIMAL(10,4)</td>
+                        <td class="col-desc">提成比例</td>
+                        <td class="col-example">0.0500</td>
+                        <td>小数形式，0.05 表示 5%</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- ========== 四、表关联关系 ========== -->
+        <h2>四、表关联关系</h2>
+        <div class="highlight-box">
+            <strong>关联字段</strong>：<code>Zj_CommissionScheme.Ladder_Id</code> → <code>Zj_CommissionLadder.Ladder_Id</code>（一对多关系，一个方案可包含多个阶梯）
+        </div>
+
+        <!-- Mermaid 图表 -->
+        <div class="mermaid-container">
+            <div class="mermaid">
+                graph LR
+                    A[Zj_CommissionScheme<br>方案表] -->|Ladder_Id| B[Zj_CommissionLadder<br>阶梯表]
+                    A -->|SchemeType| C(区分: SALER / SERVICE)
+                    A -->|CalcType| D(区分: SINGLE / CUMULATIVE)
+                    B -->|MinAmount / MaxAmount| E(匹配毛利区间)
+                    E --> F(计算提成金额)
+            </div>
+        </div>
+
+        <p style="text-align:center;font-size:13px;color:#64748b;margin-top:4px;">
+            通过 <code>Ladder_Id</code> 关联方案表与阶梯表，<code>SchemeType</code> 和 <code>CalcType</code> 决定了提成的业务类型与计算方式。
+        </p>
+
+        <!-- ========== 五、业务场景使用说明 ========== -->
+        <h2>五、业务场景使用说明</h2>
+
+        <h3>5.1 销售提成（业务员）</h3>
+        <ul style="margin-left:22px;color:#334155;font-size:14px;margin-bottom:16px;">
+            <li><strong>方案筛选</strong>：<code>SchemeType = 'SALER'</code> 且 <code>CalcType = 'SINGLE'</code>。</li>
+            <li><strong>匹配方式</strong>：对每一笔毛利，使用 <code>ABS(毛利金额)</code> 匹配阶梯表中 <code>MinAmount ≤ 金额 ＜ MaxAmount</code> 的唯一阶梯，取出 <code>CommissionRate</code> 作为提成比例。</li>
+            <li><strong>负毛利处理</strong>：若毛利为负，直接使用该方案下阶梯表中的最大比例（<code>MAX(CommissionRate)</code>）作为比例。</li>
+            <li><strong>额外标识</strong>：方案表中 <code>IsCompanyBusiness</code> 字段不用于销售提成（该字段仅客服提成使用）。</li>
+        </ul>
+
+        <h3>5.2 客服提成</h3>
+        <ul style="margin-left:22px;color:#334155;font-size:14px;margin-bottom:16px;">
+            <li><strong>方案筛选</strong>：<code>SchemeType = 'SERVICE'</code> 且 <code>CalcType = 'CUMULATIVE'</code>。</li>
+            <li><strong>匹配方式</strong>：先根据业务员姓名判断“公司业务”或“个人业务”，匹配方案中的 <code>IsCompanyBusiness</code> 字段；然后对月度汇总后的毛利金额进行<strong>累计分段计算</strong>：将毛利按绝对值逐段落在每个阶梯区间内，每段乘以对应的 <code>CommissionRate</code>，最后累加得到提成金额（正毛利为正，负毛利为负）。</li>
+            <li><strong>关键字段</strong>：方案表中的 <code>IsCompanyBusiness</code> 用于区分公司/个人业务，分别匹配不同的提成方案。</li>
+        </ul>
+
+        <h3>5.3 海外仓提成</h3>
+        <ul style="margin-left:22px;color:#334155;font-size:14px;margin-bottom:16px;">
+            <li>海外仓业务本质上与销售提成相同，使用 <code>SchemeType = 'SALER'</code> 和 <code>CalcType = 'SINGLE'</code>，只是毛利按季度汇总，且业务大类固定为“海外仓”。</li>
+            <li>方案表需配置 <code>BusinessType = '海外仓'</code> 的方案，匹配规则与销售提成一致。</li>
+        </ul>
+
+        <!-- ========== 六、注意事项 ========== -->
+        <h2>六、注意事项</h2>
+        <ul style="margin-left:22px;color:#334155;font-size:14px;margin-bottom:16px;">
+            <li><strong>阶梯区间边界</strong>：<code>MinAmount</code> 为包含（≥），<code>MaxAmount</code> 为不包含（＜），请确保各阶梯区间连续且不重叠，避免数据匹配歧义。</li>
+            <li><strong>NULL 处理</strong>：<code>MinAmount</code> 为 NULL 时视为 0；<code>MaxAmount</code> 为 NULL 时视为无穷大，通常用于最高档阶梯。</li>
+            <li><strong>方案有效期</strong>：<code>EffectiveDate</code> 和 <code>ExpirationDate</code> 支持 NULL，表示无限制。在 SQL 中判断当前日期是否在有效期内需考虑 NULL 情况。</li>
+            <li><strong>公司列表拆分</strong>：<code>CtrlOffice</code> 字段用逗号分隔，在 SQL 中通过 XML 解析拆分成多行，每个公司独立匹配。</li>
+            <li><strong>客服提成特殊字段</strong>：<code>IsCompanyBusiness</code> 仅在客服提成方案中有意义，销售提成方案中该字段可为 NULL 或默认值，不影响匹配。</li>
+        </ul>
+
+        <div class="footnote">
+            <strong>说明</strong>：本文档仅涵盖与提成计算直接相关的核心字段，实际表中可能包含其他辅助字段（如创建时间、修改人、备注等），具体请参考数据库设计文档。
+        </div>
+
+    </div>
+
+    <!-- 初始化 Mermaid -->
+    <script>
+        mermaid.initialize({
+            theme: 'neutral',
+            fontFamily: '"SF Mono", Menlo, Consolas, monospace',
+            flowchart: {
+                useMaxWidth: true,
+                htmlLabels: true
+            }
+        });
+    </script>
+</body>
+</html>

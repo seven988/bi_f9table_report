@@ -1,0 +1,1007 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>销售提成计算 SQL 逻辑文档（详细版）</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: #f5f7fc;
+            color: #1e293b;
+            padding: 40px 20px;
+            line-height: 1.7;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.06);
+            padding: 50px 55px;
+        }
+
+        .doc-header {
+            border-bottom: 3px solid #eef2f7;
+            padding-bottom: 25px;
+            margin-bottom: 35px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            flex-wrap: wrap;
+        }
+
+        .doc-header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            color: #0f172a;
+            letter-spacing: -0.3px;
+        }
+
+        .doc-header .subtitle {
+            font-size: 16px;
+            color: #64748b;
+            margin-top: 4px;
+            font-weight: 400;
+        }
+
+        .doc-header .meta {
+            text-align: right;
+            color: #94a3b8;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .doc-header .meta strong {
+            color: #475569;
+        }
+
+        h2 {
+            font-size: 22px;
+            font-weight: 600;
+            color: #0f172a;
+            margin-top: 40px;
+            margin-bottom: 18px;
+            padding-left: 14px;
+            border-left: 5px solid #3b82f6;
+        }
+
+        h3 {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1e293b;
+            margin-top: 28px;
+            margin-bottom: 12px;
+        }
+
+        h4 {
+            font-size: 15px;
+            font-weight: 600;
+            color: #334155;
+            margin-top: 18px;
+            margin-bottom: 6px;
+        }
+
+        p {
+            margin-bottom: 12px;
+            color: #334155;
+        }
+
+        .badge {
+            display: inline-block;
+            background: #dbeafe;
+            color: #1d4ed8;
+            font-size: 13px;
+            font-weight: 600;
+            padding: 0 10px;
+            border-radius: 30px;
+            line-height: 26px;
+            margin-right: 6px;
+        }
+
+        .badge.green {
+            background: #dcfce7;
+            color: #15803d;
+        }
+
+        .badge.orange {
+            background: #fef3c7;
+            color: #b45309;
+        }
+
+        .badge.purple {
+            background: #ede9fe;
+            color: #7c3aed;
+        }
+
+        .step-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin: 20px 0 10px;
+        }
+
+        .step-card {
+            background: #f8fafc;
+            border-radius: 14px;
+            padding: 18px 22px 22px;
+            border: 1px solid #e9edf4;
+            transition: 0.2s;
+        }
+
+        .step-card:hover {
+            border-color: #b9c7e0;
+            background: #f1f5f9;
+        }
+
+        .step-card .step-num {
+            display: inline-block;
+            background: #3b82f6;
+            color: #fff;
+            font-weight: 700;
+            font-size: 14px;
+            width: 30px;
+            height: 30px;
+            text-align: center;
+            line-height: 30px;
+            border-radius: 30px;
+            margin-bottom: 10px;
+        }
+
+        .step-card .step-title {
+            font-weight: 600;
+            font-size: 17px;
+            color: #0f172a;
+            margin-bottom: 4px;
+        }
+
+        .step-card .step-desc {
+            font-size: 14px;
+            color: #475569;
+            margin-bottom: 6px;
+        }
+
+        .step-card .step-sql {
+            font-size: 13px;
+            color: #64748b;
+            background: #eef2f7;
+            padding: 4px 10px;
+            border-radius: 8px;
+            display: inline-block;
+            font-family: "SF Mono", Menlo, Consolas, monospace;
+            margin-top: 4px;
+        }
+
+        .table-wrap {
+            overflow-x: auto;
+            margin: 18px 0 10px;
+            border-radius: 14px;
+            border: 1px solid #e9edf4;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        table thead {
+            background: #f1f5f9;
+        }
+
+        table th {
+            text-align: left;
+            padding: 12px 16px;
+            font-weight: 600;
+            color: #1e293b;
+            font-size: 13px;
+            letter-spacing: 0.3px;
+            border-bottom: 2px solid #dce1ea;
+        }
+
+        table td {
+            padding: 11px 16px;
+            border-bottom: 1px solid #eef2f7;
+            vertical-align: top;
+            color: #1e293b;
+        }
+
+        table tbody tr:hover {
+            background: #fafcff;
+        }
+
+        table .col-table {
+            font-family: "SF Mono", Menlo, Consolas, monospace;
+            font-size: 13px;
+            color: #0f172a;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        table .col-desc {
+            color: #334155;
+        }
+
+        table .col-source {
+            font-size: 12px;
+            color: #64748b;
+            white-space: nowrap;
+        }
+
+        .rule-list {
+            list-style: none;
+            padding: 0;
+            margin: 10px 0 6px;
+        }
+
+        .rule-list li {
+            padding: 10px 16px 10px 44px;
+            background: #f8fafc;
+            border-radius: 10px;
+            margin-bottom: 8px;
+            position: relative;
+            border-left: 3px solid #3b82f6;
+            color: #1e293b;
+            font-size: 14px;
+        }
+
+        .rule-list li::before {
+            content: "◆";
+            color: #3b82f6;
+            position: absolute;
+            left: 16px;
+            font-size: 12px;
+            top: 11px;
+        }
+
+        .rule-list li strong {
+            color: #0f172a;
+        }
+
+        .code-block {
+            background: #0f172a;
+            color: #e2e8f0;
+            border-radius: 14px;
+            padding: 20px 24px;
+            overflow-x: auto;
+            font-family: "SF Mono", Menlo, Consolas, monospace;
+            font-size: 13px;
+            line-height: 1.8;
+            margin: 16px 0 10px;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .code-block .comment {
+            color: #94a3b8;
+        }
+
+        .code-block .keyword {
+            color: #f472b6;
+        }
+
+        .code-block .func {
+            color: #60a5fa;
+        }
+
+        .code-block .string {
+            color: #34d399;
+        }
+
+        .code-block .table-name {
+            color: #fbbf24;
+        }
+
+        .flow {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: 6px 10px;
+            margin: 20px 0 14px;
+            padding: 18px 20px;
+            background: #f8fafc;
+            border-radius: 16px;
+            border: 1px solid #e9edf4;
+        }
+
+        .flow-item {
+            background: #ffffff;
+            border-radius: 30px;
+            padding: 8px 20px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #0f172a;
+            border: 1px solid #dce1ea;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+            white-space: nowrap;
+        }
+
+        .flow-item.highlight {
+            background: #3b82f6;
+            color: #fff;
+            border-color: #3b82f6;
+        }
+
+        .flow-arrow {
+            color: #94a3b8;
+            font-size: 20px;
+            font-weight: 300;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 25px 18px;
+            }
+
+            .doc-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .doc-header .meta {
+                text-align: left;
+                margin-top: 10px;
+            }
+
+            .flow {
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            .flow-arrow {
+                transform: rotate(90deg);
+            }
+
+            .step-grid {
+                grid-template-columns: 1fr;
+            }
+
+            table td,
+            table th {
+                padding: 8px 10px;
+                font-size: 13px;
+            }
+
+            .code-block {
+                font-size: 12px;
+                padding: 14px 16px;
+            }
+        }
+
+        .appendix-toggle {
+            display: inline-block;
+            background: #f1f5f9;
+            border: 1px solid #dce1ea;
+            border-radius: 30px;
+            padding: 6px 22px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #1e293b;
+            cursor: pointer;
+            transition: 0.2s;
+            margin: 6px 0 12px;
+            user-select: none;
+        }
+
+        .appendix-toggle:hover {
+            background: #e2e8f0;
+        }
+
+        .appendix-content {
+            display: none;
+            margin-top: 12px;
+        }
+
+        .appendix-content.open {
+            display: block;
+        }
+
+        .footnote {
+            font-size: 13px;
+            color: #94a3b8;
+            margin-top: 6px;
+            border-top: 1px solid #eef2f7;
+            padding-top: 14px;
+        }
+
+        .detail-box {
+            background: #fafcff;
+            border-left: 4px solid #3b82f6;
+            padding: 16px 20px;
+            margin: 12px 0 16px;
+            border-radius: 8px;
+        }
+
+        .detail-box strong {
+            color: #0f172a;
+        }
+
+        .detail-box ul {
+            margin-left: 20px;
+            margin-top: 4px;
+        }
+
+        .detail-box ul li {
+            margin-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+
+        <!-- ========== 文档头部 ========== -->
+        <div class="doc-header">
+            <div>
+                <h1>📊 销售提成计算 &mdash; SQL 逻辑文档（详细版）</h1>
+                <div class="subtitle">基于成本毛利 &amp; 阶梯方案的业务员提成核算</div>
+            </div>
+            <div class="meta">
+                <strong>版本</strong> V2.1<br />
+                <strong>更新</strong> 2026-06-29<br />
+                <strong>数据库</strong> SQL Server
+            </div>
+        </div>
+
+        <!-- ========== 一、概述 ========== -->
+        <h2>一、概述</h2>
+        <p>
+            本 SQL 用于计算业务员在指定时间段内的 <strong>销售提成</strong>。
+            核心逻辑是：从成本明细中汇总毛利，按业务大类匹配提成方案，再根据毛利金额所在的阶梯区间计算提成比例，最终得出提成金额。
+            整个计算过程包含 <strong>6 个逻辑层</strong>（CTE），层层递进。
+        </p>
+
+        <!-- ========== 二、整体逻辑流程 ========== -->
+        <h2>二、整体逻辑流程</h2>
+        <div class="flow">
+            <span class="flow-item">📦 成本毛利</span>
+            <span class="flow-arrow">→</span>
+            <span class="flow-item">🔄 毛利数据<br /><span style="font-size:12px;color:#64748b;">(业务大类转换)</span></span>
+            <span class="flow-arrow">→</span>
+            <span class="flow-item">📋 方案拆分</span>
+            <span class="flow-arrow">→</span>
+            <span class="flow-item">🔗 方案匹配</span>
+            <span class="flow-arrow">→</span>
+            <span class="flow-item">⚡ 提成计算</span>
+            <span class="flow-arrow">→</span>
+            <span class="flow-item">📄 最终输出</span>
+        </div>
+
+        <div class="step-grid">
+            <div class="step-card">
+                <div class="step-num">1</div>
+                <div class="step-title">成本毛利</div>
+                <div class="step-desc">从 <code>Cost</code> + <code>CostItem</code> 汇总毛利，关联 <code>Export</code> 获取业务大类及分单信息。</div>
+                <span class="step-sql">CTE: 成本毛利</span>
+            </div>
+            <div class="step-card">
+                <div class="step-num">2</div>
+                <div class="step-title">毛利数据</div>
+                <div class="step-desc">对业务大类做转换：代拉代报取主单大类，跨境电商子类合并为「跨境电商」。</div>
+                <span class="step-sql">CTE: 毛利数据</span>
+            </div>
+            <div class="step-card">
+                <div class="step-num">3</div>
+                <div class="step-title">方案拆分</div>
+                <div class="step-desc">从提成方案表拆分接单公司（逗号分隔），筛选业务提成 &amp; 单笔计算 &amp; 启用方案。</div>
+                <span class="step-sql">CTE: 方案拆分</span>
+            </div>
+            <div class="step-card">
+                <div class="step-num">4</div>
+                <div class="step-title">方案匹配</div>
+                <div class="step-desc">按「接单公司 + 业务大类」去重匹配方案，获取阶梯 ID。</div>
+                <span class="step-sql">CTE: 方案匹配</span>
+            </div>
+            <div class="step-card">
+                <div class="step-num">5</div>
+                <div class="step-title">提成计算</div>
+                <div class="step-desc">匹配阶梯比例：正毛利按区间匹配，负毛利使用最高比例。同时保留最高比例兜底。</div>
+                <span class="step-sql">CTE: 提成计算</span>
+            </div>
+            <div class="step-card">
+                <div class="step-num">6</div>
+                <div class="step-title">最终输出</div>
+                <div class="step-desc">输出提成比例（含标注）及提成金额，便于核对与报表展示。</div>
+                <span class="step-sql">SELECT 最终</span>
+            </div>
+        </div>
+
+        <!-- ========== 三、详细逻辑说明（大幅扩充） ========== -->
+        <h2>三、详细逻辑说明</h2>
+
+        <!-- ===== 步骤1：成本毛利 ===== -->
+        <h3>步骤 1：成本毛利（CTE: 成本毛利）</h3>
+        <div class="detail-box">
+            <p><strong>🎯 业务目标</strong><br />
+            在 <code>CostId</code> 粒度上，汇总每一张成本单的净毛利（收入 - 支出），并同时获取该成本单对应的分单状态、主单业务大类等属性，为后续业务大类转换做准备。
+            </p>
+            <p><strong>📥 输入数据</strong></p>
+            <ul>
+                <li><strong>Cost</strong>（成本单头）：提供接单公司、业务员、业务日期、原始业务大类。</li>
+                <li><strong>CostItem</strong>（成本明细）：提供收支标识（Ioid）、金额、汇率及运算符号。</li>
+                <li><strong>Export</strong>（出口单）：通过 <code>LEFT JOIN</code> 关联，获取当前单是否分单（<code>SplitMblId</code>）以及主单的业务大类（<code>e_main.BusWay</code>）。</li>
+            </ul>
+            <p><strong>⚙️ 核心计算逻辑</strong></p>
+            <ul>
+                <li><strong>毛利 = 收入合计 - 支出合计</strong>，其中每一行明细均按 <code>ChgSign</code>（'*' 或 '/'）与 <code>ChgRate</code> 进行汇率折算，得到本币金额。</li>
+                <li><strong>分单识别</strong>：若 <code>e_self.SplitMblId IS NOT NULL</code> 则标记为分单（1），否则非分单（0）。</li>
+                <li><strong>主单业务大类</strong>：通过关联 <code>e_main.SplitId = 'P'</code> 取出主单的 <code>BusWay</code>，供后续代拉代报转换使用。</li>
+            </ul>
+            <p><strong>📤 输出字段</strong><br />
+            <code>CostId</code>, <code>接单公司</code>, <code>业务员</code>, <code>月度</code>, <code>原始业务大类</code>, <code>主单业务大类</code>, <code>是否分单</code>, <code>毛利金额</code>。
+            </p>
+            <p><strong>⚠️ 重要过滤条件</strong></p>
+            <ul>
+                <li>仅统计指定日期区间内的业务（<code>$DE_PARAM</code>）。</li>
+                <li>排除已取消（<code>Cancelid = 'T'</code>）、红冲明细（<code>redid IS NOT NULL</code>）、业务员为空、业务大类为空或为“海外仓”的记录。</li>
+            </ul>
+            <p><strong>💡 注意</strong>：该 CTE 以 <code>CostId</code> 为最小分组单位，确保每一张单独立计算毛利，不会因后续聚合而混淆。</p>
+        </div>
+
+        <!-- ===== 步骤2：毛利数据 ===== -->
+        <h3>步骤 2：毛利数据（CTE: 毛利数据）</h3>
+        <div class="detail-box">
+            <p><strong>🎯 业务目标</strong><br />
+            对上一步得到的“原始业务大类”进行业务转换，生成“实际业务大类”，并将同一成本单下可能存在的多行（理论上前一步已按 CostId 聚合，但此处仍做二次聚合以保证一致性）按维度再次汇总。
+            </p>
+            <p><strong>📥 输入数据</strong><br />
+            来自 <code>成本毛利</code> CTE 的输出。
+            </p>
+            <p><strong>⚙️ 核心转换规则</strong></p>
+            <ul>
+                <li><strong>代拉代报转换</strong>：若原始业务大类为“代拉代报”：
+                    <ul>
+                        <li>如果该单是分单（<code>是否分单 = 1</code>）且主单业务大类不为空，则实际业务大类 = 主单业务大类。</li>
+                        <li>否则保持“代拉代报”不变。</li>
+                    </ul>
+                </li>
+                <li><strong>跨境电商合并</strong>：将“跨境电商头程”、“跨境电商尾程”、“跨境电商全段”统一归并为“跨境电商”。</li>
+                <li><strong>其他大类</strong>：保持原值。</li>
+            </ul>
+            <p><strong>📤 输出字段</strong><br />
+            <code>接单公司</code>, <code>实际业务大类</code>, <code>业务员</code>, <code>月度</code>, <code>毛利金额</code>（按上述维度求和）。
+            </p>
+            <p><strong>💡 注意</strong>：<code>GROUP BY</code> 中重复了完整的 <code>CASE</code> 表达式，这是 SQL Server 的要求（不能直接引用别名），确保分组正确。</p>
+        </div>
+
+        <!-- ===== 步骤3：方案拆分 ===== -->
+        <h3>步骤 3：方案拆分（CTE: 方案拆分）</h3>
+        <div class="detail-box">
+            <p><strong>🎯 业务目标</strong><br />
+            从提成方案表中，将“接单公司”字段（以逗号分隔的多公司）拆分成多行，同时过滤出符合当前时间范围的、启用的、针对业务员（<code>SALER</code>）且为单笔计算（<code>SINGLE</code>）的方案。
+            </p>
+            <p><strong>📥 输入数据</strong><br />
+            <code>Zj_CommissionScheme</code>（提成方案表）。
+            </p>
+            <p><strong>⚙️ 核心逻辑</strong></p>
+            <ul>
+                <li>使用 <code>CROSS APPLY</code> + XML 解析，将 <code>CtrlOffice</code> 按逗号拆分为多行。</li>
+                <li>过滤条件：
+                    <ul>
+                        <li><code>SchemeType = 'SALER'</code>（业务员提成）</li>
+                        <li><code>CalcType = 'SINGLE'</code>（单笔计算，非累计）</li>
+                        <li><code>Status = 1</code>（启用）</li>
+                        <li>当前日期在 <code>EffectiveDate</code> 和 <code>ExpirationDate</code> 范围内（NULL 表示无限制）。</li>
+                    </ul>
+                </li>
+            </ul>
+            <p><strong>📤 输出字段</strong><br />
+            <code>Ladder_Id</code>, <code>SchemeName</code>, <code>BusinessType</code>, <code>接单公司</code>（拆分行）。
+            </p>
+            <p><strong>💡 注意</strong>：同一方案若包含多个公司，拆分后每个公司一行，后续匹配时每个公司独立匹配。</p>
+        </div>
+
+        <!-- ===== 步骤4：方案匹配 ===== -->
+        <h3>步骤 4：方案匹配（CTE: 方案匹配）</h3>
+        <div class="detail-box">
+            <p><strong>🎯 业务目标</strong><br />
+            将毛利数据与拆分后的方案进行关联，为每一组（接单公司 + 实际业务大类）找到对应的提成方案（阶梯 ID 和名称），并去重，避免重复匹配。
+            </p>
+            <p><strong>📥 输入数据</strong><br />
+            来自 <code>毛利数据</code> 和 <code>方案拆分</code>。
+            </p>
+            <p><strong>⚙️ 核心逻辑</strong></p>
+            <ul>
+                <li>关联条件：<code>毛利数据.接单公司 = 方案拆分.接单公司</code> 且 <code>毛利数据.实际业务大类 = 方案拆分.BusinessType</code>。</li>
+                <li>使用 <code>DISTINCT</code> 去除重复（因为一个方案可能有多行，但关联后只取一次）。</li>
+            </ul>
+            <p><strong>📤 输出字段</strong><br />
+            <code>接单公司</code>, <code>BusinessType</code>, <code>Ladder_Id</code>, <code>SchemeName</code>。
+            </p>
+            <p><strong>💡 注意</strong>：若某组（公司+大类）未匹配到任何方案，则后续提成金额为 0。</p>
+        </div>
+
+        <!-- ===== 步骤5：提成计算 ===== -->
+        <h3>步骤 5：提成计算（CTE: 提成计算）</h3>
+        <div class="detail-box">
+            <p><strong>🎯 业务目标</strong><br />
+            根据匹配到的阶梯方案，计算每个毛利记录对应的提成比例（正毛利匹配区间，负毛利使用最高比例），并保留最高比例作为兜底。
+            </p>
+            <p><strong>📥 输入数据</strong><br />
+            来自 <code>毛利数据</code> 和 <code>方案匹配</code>，以及 <code>Zj_CommissionLadder</code>（阶梯表）。
+            </p>
+            <p><strong>⚙️ 核心计算逻辑</strong></p>
+            <ul>
+                <li><strong>最高提成比例</strong>：取该 <code>Ladder_Id</code> 下所有阶梯中最大的 <code>CommissionRate</code>（用于负数毛利和未匹配到具体阶梯时）。</li>
+                <li><strong>匹配提成比例</strong>：使用 <code>ABS(毛利金额)</code> 匹配满足 <code>MinAmount ≤ 毛利 ＜ MaxAmount</code> 的阶梯，按 <code>LadderSeq</code> 排序取第一条（通常设计为不重叠区间）。</li>
+                <li>若未找到匹配阶梯，则匹配提成比例为 NULL，后续将使用最高比例作为默认。</li>
+            </ul>
+            <p><strong>📤 输出字段</strong><br />
+            所有毛利维度字段 + <code>Ladder_Id</code>, <code>SchemeName</code>, <code>最高提成比例</code>, <code>匹配提成比例</code>。
+            </p>
+            <p><strong>💡 注意</strong>：负毛利单独处理，直接使用最高比例，体现激励规则。</p>
+        </div>
+
+        <!-- ===== 步骤6：最终输出 ===== -->
+        <h3>步骤 6：最终输出（SELECT）</h3>
+        <div class="detail-box">
+            <p><strong>🎯 业务目标</strong><br />
+            生成最终提成报表，包含提成比例（带状态标注）和提成金额，并增加固定字段（费用类型、业务类型）和预估年月。
+            </p>
+            <p><strong>📥 输入数据</strong><br />
+            来自 <code>提成计算</code> CTE。
+            </p>
+            <p><strong>⚙️ 输出字段计算</strong></p>
+            <ul>
+                <li><strong>提成比例</strong>（显示用）：
+                    <ul>
+                        <li>若未匹配方案 → <code>'未设置提成规则'</code></li>
+                        <li>若毛利 < 0 → 显示 <code>最高提成比例% (负数毛利)</code></li>
+                        <li>否则 → 显示 <code>匹配提成比例%</code>，若匹配为 NULL 则显示 <code>最高提成比例% (默认)</code></li>
+                    </ul>
+                </li>
+                <li><strong>提成金额</strong>：
+                    <ul>
+                        <li>未匹配方案 → 0</li>
+                        <li>毛利 < 0 → <code>毛利 * 最高提成比例</code></li>
+                        <li>其他 → <code>毛利 * (匹配提成比例 或 最高提成比例)</code></li>
+                    </ul>
+                </li>
+                <li><strong>预估年月</strong>：当前系统日期（<code>GETDATE()</code>）的 <code>yyyy-MM</code> 格式。</li>
+                <li><strong>费用类型</strong>：固定为“销售费用”。</li>
+                <li><strong>业务类型</strong>：固定为空字符串（保留字段）。</li>
+            </ul>
+            <p><strong>📤 最终输出</strong><br />
+            一张完整的提成明细表，可直接用于报表展示或后续核算。
+            </p>
+        </div>
+
+        <!-- ========== 四、字段含义表 ========== -->
+        <h2>四、字段含义表</h2>
+        <p style="margin-bottom:4px;">以下为本次 SQL 中涉及的所有核心字段及其含义，按表分组。</p>
+
+        <h3>4.1 Cost（成本表）</h3>
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>字段</th><th>含义</th><th>说明</th></tr></thead>
+                <tbody>
+                    <tr><td class="col-table">Id</td><td class="col-desc">成本ID</td><td class="col-source">主键，唯一标识</td></tr>
+                    <tr><td class="col-table">ctrloffice</td><td class="col-desc">接单公司</td><td class="col-source">业务归属公司</td></tr>
+                    <tr><td class="col-table">Saler</td><td class="col-desc">业务员</td><td class="col-source">提成归属人</td></tr>
+                    <tr><td class="col-table">BizDate</td><td class="col-desc">业务日期</td><td class="col-source">用于月度聚合</td></tr>
+                    <tr><td class="col-table">BusWay</td><td class="col-desc">业务大类</td><td class="col-source">原始业务分类</td></tr>
+                    <tr><td class="col-table">Cancelid</td><td class="col-desc">取消标识</td><td class="col-source">'T' 表示已取消，过滤掉</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <h3>4.2 CostItem（成本明细表）</h3>
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>字段</th><th>含义</th><th>说明</th></tr></thead>
+                <tbody>
+                    <tr><td class="col-table">CostId</td><td class="col-desc">成本ID</td><td class="col-source">关联 Cost.Id</td></tr>
+                    <tr><td class="col-table">Ioid</td><td class="col-desc">收支标识</td><td class="col-source">1 = 收入，-1 = 支出</td></tr>
+                    <tr><td class="col-table">Amount</td><td class="col-desc">金额</td><td class="col-source">原始金额</td></tr>
+                    <tr><td class="col-table">ChgSign</td><td class="col-desc">汇率运算符号</td><td class="col-source">'*' 或 '/'，用于汇率转换</td></tr>
+                    <tr><td class="col-table">ChgRate</td><td class="col-desc">汇率</td><td class="col-source">与 Amount 运算后得到本币金额</td></tr>
+                    <tr><td class="col-table">redid</td><td class="col-desc">红冲标识</td><td class="col-source">非 NULL 表示红冲记录，过滤掉</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <h3>4.3 Export（出口表）</h3>
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>字段</th><th>含义</th><th>说明</th></tr></thead>
+                <tbody>
+                    <tr><td class="col-table">Id</td><td class="col-desc">出口ID</td><td class="col-source">关联 Cost.Id</td></tr>
+                    <tr><td class="col-table">SplitId</td><td class="col-desc">分单标识</td><td class="col-source">'P' = 主单</td></tr>
+                    <tr><td class="col-table">SplitMblId</td><td class="col-desc">分单主单ID</td><td class="col-source">用于关联主单</td></tr>
+                    <tr><td class="col-table">BusWay</td><td class="col-desc">业务大类</td><td class="col-source">主单的业务分类</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <h3>4.4 Zj_CommissionScheme（提成方案表）</h3>
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>字段</th><th>含义</th><th>说明</th></tr></thead>
+                <tbody>
+                    <tr><td class="col-table">Ladder_Id</td><td class="col-desc">阶梯ID</td><td class="col-source">关联阶梯表</td></tr>
+                    <tr><td class="col-table">SchemeName</td><td class="col-desc">方案名称</td><td class="col-source">便于识别</td></tr>
+                    <tr><td class="col-table">BusinessType</td><td class="col-desc">业务类型</td><td class="col-source">匹配业务大类</td></tr>
+                    <tr><td class="col-table">CtrlOffice</td><td class="col-desc">接单公司</td><td class="col-source">逗号分隔，支持多公司</td></tr>
+                    <tr><td class="col-table">SchemeType</td><td class="col-desc">方案类型</td><td class="col-source">'SALER' = 业务员提成</td></tr>
+                    <tr><td class="col-table">CalcType</td><td class="col-desc">计算类型</td><td class="col-source">'SINGLE' = 单笔计算</td></tr>
+                    <tr><td class="col-table">Status</td><td class="col-desc">状态</td><td class="col-source">1 = 启用</td></tr>
+                    <tr><td class="col-table">EffectiveDate</td><td class="col-desc">生效日期</td><td class="col-source">NULL 表示无限制</td></tr>
+                    <tr><td class="col-table">ExpirationDate</td><td class="col-desc">失效日期</td><td class="col-source">NULL 表示无限制</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <h3>4.5 Zj_CommissionLadder（提成阶梯表）</h3>
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>字段</th><th>含义</th><th>说明</th></tr></thead>
+                <tbody>
+                    <tr><td class="col-table">Ladder_Id</td><td class="col-desc">阶梯ID</td><td class="col-source">关联方案表</td></tr>
+                    <tr><td class="col-table">CommissionRate</td><td class="col-desc">提成比例</td><td class="col-source">小数形式，如 0.05 表示 5%</td></tr>
+                    <tr><td class="col-table">MinAmount</td><td class="col-desc">最小金额</td><td class="col-source">区间左边界（含）</td></tr>
+                    <tr><td class="col-table">MaxAmount</td><td class="col-desc">最大金额</td><td class="col-source">区间右边界（不含）</td></tr>
+                    <tr><td class="col-table">LadderSeq</td><td class="col-desc">阶梯序号</td><td class="col-source">用于排序匹配</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <h3>4.6 计算字段 / 别名</h3>
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>字段</th><th>含义</th><th>计算逻辑</th></tr></thead>
+                <tbody>
+                    <tr><td class="col-table">接单公司</td><td class="col-desc">清洗后的公司名</td><td><code>RTRIM(LTRIM(ctrloffice))</code></td></tr>
+                    <tr><td class="col-table">业务员</td><td class="col-desc">业务员名称</td><td><code>Saler</code></td></tr>
+                    <tr><td class="col-table">月度</td><td class="col-desc">业务月度</td><td><code>FORMAT(BizDate, 'yyyy-MM')</code></td></tr>
+                    <tr><td class="col-table">原始业务大类</td><td class="col-desc">原始分类</td><td><code>COALESCE(e_main.BusWay, c.BusWay)</code></td></tr>
+                    <tr><td class="col-table">主单业务大类</td><td class="col-desc">主单分类</td><td>分单时取主单 <code>BusWay</code></td></tr>
+                    <tr><td class="col-table">是否分单</td><td class="col-desc">分单标识</td><td><code>1</code> = 分单，<code>0</code> = 非分单</td></tr>
+                    <tr><td class="col-table">毛利金额</td><td class="col-desc">汇总毛利</td><td>收入合计 − 支出合计（含汇率转换）</td></tr>
+                    <tr><td class="col-table">实际业务大类</td><td class="col-desc">转换后分类</td><td>代拉代报转换 + 跨境电商合并</td></tr>
+                    <tr><td class="col-table">最高提成比例</td><td class="col-desc">阶梯最大比例</td><td>该 <code>Ladder_Id</code> 下最大 <code>CommissionRate</code></td></tr>
+                    <tr><td class="col-table">匹配提成比例</td><td class="col-desc">命中阶梯比例</td><td>按毛利金额匹配的阶梯 <code>CommissionRate</code></td></tr>
+                    <tr><td class="col-table">提成比例</td><td class="col-desc">显示比例</td><td>含「负数毛利」「默认」等标注</td></tr>
+                    <tr><td class="col-table">提成金额</td><td class="col-desc">最终提成</td><td>毛利金额 × 提成比例</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- ========== 五、业务规则说明 ========== -->
+        <h2>五、业务规则说明</h2>
+        <ul class="rule-list">
+            <li><strong>代拉代报转换规则</strong>：<br />
+                若原始业务大类为「代拉代报」且为分单（<code>是否分单 = 1</code>）且主单业务大类不为空，则转换为「主单业务大类」；
+                否则保持「代拉代报」。</li>
+            <li><strong>跨境电商合并规则</strong>：<br />
+                「跨境电商头程」「跨境电商尾程」「跨境电商全段」统一合并为「跨境电商」。</li>
+            <li><strong>提成比例匹配规则</strong>：<br />
+                正毛利按 <code>ABS(毛利金额)</code> 匹配阶梯区间（<code>MinAmount ≤ 毛利 ＜ MaxAmount</code>）；
+                负毛利直接使用该阶梯的 <strong>最高提成比例</strong>。</li>
+            <li><strong>未匹配方案处理</strong>：<br />
+                若未匹配到任何提成方案（<code>Ladder_Id IS NULL</code>），则提成金额为 <code>0</code>，提成比例显示「未设置提成规则」。</li>
+            <li><strong>数据过滤</strong>：<br />
+                过滤已取消（<code>Cancelid = 'T'</code>）、红冲（<code>redid IS NOT NULL</code>）、业务员为空、业务大类为空或「海外仓」的记录。</li>
+            <li><strong>日期参数</strong>：<br />
+                使用 <code>$DE_PARAM{...}</code> 动态传入 <code>BEGINTIME</code> 和 <code>ENDTIME</code>，支持参数化查询。</li>
+        </ul>
+
+        <!-- ========== 六、输出结果说明 ========== -->
+        <h2>六、输出结果说明</h2>
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>输出字段</th><th>含义</th><th>示例</th></tr></thead>
+                <tbody>
+                    <tr><td class="col-table">接单公司</td><td class="col-desc">业务归属公司</td><td>上海分公司</td></tr>
+                    <tr><td class="col-table">业务大类</td><td class="col-desc">转换后的实际业务分类</td><td>跨境电商</td></tr>
+                    <tr><td class="col-table">业务员</td><td class="col-desc">提成归属人</td><td>张三</td></tr>
+                    <tr><td class="col-table">月度</td><td class="col-desc">业务发生的月度</td><td>2026-06</td></tr>
+                    <tr><td class="col-table">预估年月</td><td class="col-desc">当前系统年月</td><td>2026-06</td></tr>
+                    <tr><td class="col-table">毛利金额</td><td class="col-desc">汇总毛利（保留2位小数）</td><td>125,800.50</td></tr>
+                    <tr><td class="col-table">费用类型</td><td class="col-desc">固定值「销售费用」</td><td>销售费用</td></tr>
+                    <tr><td class="col-table">业务类型</td><td class="col-desc">固定空值</td><td>（空）</td></tr>
+                    <tr><td class="col-table">提成比例</td><td class="col-desc">比例 + 状态标注</td><td>3.50% 或 5.00% (负数毛利)</td></tr>
+                    <tr><td class="col-table">提成金额</td><td class="col-desc">最终提成金额（保留2位小数）</td><td>4,403.02</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- ========== 附录：完整 SQL ========== -->
+        <h2 style="margin-top:44px;">附录：完整 SQL 代码</h2>
+        <p style="font-size:14px;color:#64748b;margin-bottom:6px;">
+            点击下方按钮展开 / 折叠完整 SQL。
+        </p>
+        <div class="appendix-toggle" onclick="toggleAppendix()">📄 显示 / 隐藏 SQL</div>
+        <div class="appendix-content" id="appendixSql">
+            <div class="code-block">
+                <span class="comment">-- ============================================================</span>
+                <span class="comment">-- 销售提成计算 SQL（完整版）</span>
+                <span class="comment">-- 数据库：SQL Server</span>
+                <span class="comment">-- ============================================================</span>
+
+                <span class="comment">-- 1. 按 CostId 聚合毛利，保留原始业务大类及分单信息</span>
+                <span class="keyword">WITH</span> 成本毛利 <span class="keyword">AS</span> (
+                    <span class="keyword">SELECT</span>
+                        c.Id <span class="keyword">AS</span> CostId,
+                        <span class="func">RTRIM</span>(<span class="func">LTRIM</span>(c.ctrloffice)) <span class="keyword">AS</span> 接单公司,
+                        c.Saler <span class="keyword">AS</span> 业务员,
+                        <span class="func">FORMAT</span>(c.BizDate, <span class="string">'yyyy-MM'</span>) <span class="keyword">AS</span> 月度,
+                        <span class="func">COALESCE</span>(e_main.BusWay, c.BusWay) <span class="keyword">AS</span> 原始业务大类,
+                        <span class="func">MAX</span>(<span class="keyword">CASE</span> <span class="keyword">WHEN</span> e_main.SplitId = <span class="string">'P'</span> <span class="keyword">THEN</span> e_main.BusWay <span class="keyword">END</span>) <span class="keyword">AS</span> 主单业务大类,
+                        <span class="func">MAX</span>(<span class="keyword">CASE</span> <span class="keyword">WHEN</span> e_self.SplitMblId <span class="keyword">IS NOT NULL</span> <span class="keyword">THEN</span> 1 <span class="keyword">ELSE</span> 0 <span class="keyword">END</span>) <span class="keyword">AS</span> 是否分单,
+                        <span class="func">ROUND</span>(
+                            <span class="func">SUM</span>(<span class="keyword">CASE</span>
+                                <span class="keyword">WHEN</span> ci.Ioid = 1 <span class="keyword">THEN</span>
+                                    <span class="keyword">CASE</span>
+                                        <span class="keyword">WHEN</span> ci.ChgSign = <span class="string">'*'</span> <span class="keyword">THEN</span> ci.Amount * <span class="func">ISNULL</span>(ci.ChgRate, 1)
+                                        <span class="keyword">WHEN</span> ci.ChgSign = <span class="string">'/'</span> <span class="keyword">THEN</span> ci.Amount / <span class="func">ISNULL</span>(ci.ChgRate, 1)
+                                        <span class="keyword">ELSE</span> ci.Amount
+                                    <span class="keyword">END</span>
+                                <span class="keyword">ELSE</span> 0
+                            <span class="keyword">END</span>)
+                            -
+                            <span class="func">SUM</span>(<span class="keyword">CASE</span>
+                                <span class="keyword">WHEN</span> ci.Ioid = -1 <span class="keyword">THEN</span>
+                                    <span class="keyword">CASE</span>
+                                        <span class="keyword">WHEN</span> ci.ChgSign = <span class="string">'*'</span> <span class="keyword">THEN</span> ci.Amount * <span class="func">ISNULL</span>(ci.ChgRate, 1)
+                                        <span class="keyword">WHEN</span> ci.ChgSign = <span class="string">'/'</span> <span class="keyword">THEN</span> ci.Amount / <span class="func">ISNULL</span>(ci.ChgRate, 1)
+                                        <span class="keyword">ELSE</span> ci.Amount
+                                    <span class="keyword">END</span>
+                                <span class="keyword">ELSE</span> 0
+                            <span class="keyword">END</span>),
+                        2) <span class="keyword">AS</span> 毛利金额
+                    <span class="keyword">FROM</span> <span class="table-name">Cost</span> c
+                    <span class="keyword">INNER JOIN</span> <span class="table-name">CostItem</span> ci <span class="keyword">ON</span> c.Id = ci.CostId
+                    <span class="keyword">LEFT JOIN</span> <span class="table-name">Export</span> e_self <span class="keyword">ON</span> c.Id = e_self.Id
+                    <span class="keyword">LEFT JOIN</span> <span class="table-name">Export</span> e_main <span class="keyword">ON</span> e_self.SplitMblId = e_main.SplitMblId <span class="keyword">AND</span> e_main.SplitId = <span class="string">'P'</span>
+                    <span class="keyword">WHERE</span> 1=1
+                      <span class="keyword">AND</span> $DE_PARAM{ c.BizDate >= <span class="string">'$[BEGINTIME]'</span> <span class="keyword">AND</span> c.BizDate < <span class="func">DATEADD</span>(DAY, 1, <span class="string">'$[ENDTIME]'</span>) }
+                      <span class="keyword">AND</span> c.Cancelid &lt;&gt; <span class="string">'T'</span>
+                      <span class="keyword">AND</span> c.Saler <span class="keyword">IS NOT NULL</span> <span class="keyword">AND</span> c.Saler &lt;&gt; <span class="string">''</span>
+                      <span class="keyword">AND</span> ci.redid <span class="keyword">IS NULL</span>
+                      <span class="keyword">AND</span> <span class="func">COALESCE</span>(e_main.BusWay, c.BusWay) <span class="keyword">IS NOT NULL</span>
+                      <span class="keyword">AND</span> <span class="func">RTRIM</span>(<span class="func">LTRIM</span>(<span class="func">COALESCE</span>(e_main.BusWay, c.BusWay))) &lt;&gt; <span class="string">''</span>
+                      <span class="keyword">AND</span> <span class="func">RTRIM</span>(<span class="func">LTRIM</span>(<span class="func">COALESCE</span>(e_main.BusWay, c.BusWay))) &lt;&gt; <span class="string">'海外仓'</span>
+                    <span class="keyword">GROUP BY</span>
+                        c.Id, c.ctrloffice, c.Saler, c.BizDate,
+                        <span class="func">COALESCE</span>(e_main.BusWay, c.BusWay)
+                ),
+                <span class="comment">-- 2. 业务大类转换</span>
+                毛利数据 <span class="keyword">AS</span> (
+                    <span class="keyword">SELECT</span>
+                        m.接单公司,
+                        <span class="func">RTRIM</span>(<span class="func">LTRIM</span>(
+                            <span class="keyword">CASE</span>
+                                <span class="keyword">WHEN</span> m.原始业务大类 = <span class="string">'代拉代报'</span> <span class="keyword">THEN</span>
+                                    <span class="keyword">CASE</span>
+                                        <span class="keyword">WHEN</span> m.是否分单 = 1 <span class="keyword">AND</span> m.主单业务大类 <span class="keyword">IS NOT NULL</span> <span class="keyword">THEN</span> m.主单业务大类
+                                        <span class="keyword">ELSE</span> <span class="string">'代拉代报'</span>
+                                    <span class="keyword">END</span>
+                                <span class="keyword">WHEN</span> m.原始业务大类 <span class="keyword">IN</span> (<span class="string">'跨境电商头程'</span>, <span class="string">'跨境电商尾程'</span>, <span class="string">'跨境电商全段'</span>)
+                                <span class="keyword">THEN</span> <span class="string">'跨境电商'</span>
+                                <span class="keyword">ELSE</span> m.原始业务大类
+                            <span class="keyword">END</span>
+                        )) <span class="keyword">AS</span> 实际业务大类,
+                        m.业务员,
+                        m.月度,
+                        <span class="func">SUM</span>(m.毛利金额) <span class="keyword">AS</span> 毛利金额
+                    <span class="keyword">FROM</span> 成本毛利 m
+                    <span class="keyword">WHERE</span> m.原始业务大类 <span class="keyword">IS NOT NULL</span>
+                      <span class="keyword">AND</span> <span class="func">RTRIM</span>(<span class="func">LTRIM</span>(m.原始业务大类)) &lt;&gt; <span class="string">'海外仓'</span>
+                    <span class="keyword">GROUP BY</span>
+                        m.接单公司,
+                        <span class="keyword">CASE</span>
+                            <span class="keyword">WHEN</span> m.原始业务大类 = <span class="string">'代拉代报'</span> <span class="keyword">THEN</span>
+                                <span class="keyword">CASE</span>
+                                    <span class="keyword">WHEN</span> m.是否分单 = 1 <span class="keyword">AND</span> m.主单业务大类 <span class="keyword">IS NOT NULL</span> <span class="keyword">THEN</span> m.主单业务大类
+                                    <span class="keyword">ELSE</span> <span class="string">'代拉代报'</span>
+                                <span class="keyword">END</span>
+                            <span class="keyword">WHEN</span> m.原始业务大类 <span class="keyword">IN</span> (<span class="string">'跨境电商头程'</span>, <span class="string">'跨境电商尾程'</span>, <span class="string">'跨境电商全段'</span>)
+                            <span class="keyword">THEN</span> <span class="string">'跨境电商'</span>
+                            <span class="keyword">ELSE</span> m.原始业务大类
+                        <span class="keyword">END</span>,
+                        m.业务员,
+                        m.月度
+                ),
+                <span class="comment">-- 3. 拆分提成方案（只取业务提成）</span>
+                方案拆分 <span class="keyword">AS</span> (
+                    <span class="keyword">SELECT</span>
+                        s.Ladder_Id,
+                        s.SchemeName,
+                        s.BusinessType,
+                        <span class="func">LTRIM</span>(<span class="func">RTRIM</span>(Split.a.value(<span class="string">'.'</span>, <span class="string">'NVARCHAR(MAX)'</span>))) <span class="keyword">AS</span> 接单公司
+                    <span class="keyword">FROM</span> <span class="table-name">Zj_CommissionScheme</span> s
+                    <span class="keyword">CROSS APPLY</span> (<span class="keyword">SELECT</span> <span class="func">CAST</span>(<span class="string">'&lt;M&gt;'</span> + <span class="func">REPLACE</span>(s.CtrlOffice, <span class="string">','</span>, <span class="string">'&lt;/M&gt;&lt;M&gt;'</span>) + <span class="string">'&lt;/M&gt;'</span> <span class="keyword">AS</span> XML) <span class="keyword">AS</span> x) t
+                    <span class="keyword">CROSS APPLY</span> t.x.nodes(<span class="string">'/M'</span>) Split(a)
+                    <span class="keyword">WHERE</span> s.SchemeType = <span class="string">'SALER'</span>
+                      <span class="keyword">AND</span> s.CalcType = <span class="string">'SINGLE'</span>
+                      <span class="keyword">AND</span> s.CtrlOffice <span class="keyword">IS NOT NULL</span> <span class="keyword">AND</span> s.CtrlOffice != <span class="string">''</span>
+                      <span class="keyword">AND</span> s.Status = 1
+                      <span class="keyword">AND</span> (s.EffectiveDate &lt;= <span class="func">GETDATE</span>() <span class="keyword">OR</span> s.EffectiveDate <span class="keyword">IS NULL</span>)
+                      <span class="keyword">AND</span> (s.ExpirationDate &gt;= <span class="func">GETDATE</span>() <span class="keyword">OR</span> s.ExpirationDate <span class="keyword">IS NULL</span>)
+                ),
+                <span class="comment">-- 4. 方案匹配（去重）</span>
+                方案匹配 <span class="keyword">AS</span> (
+                    <span class="keyword">SELECT</span> <span class="keyword">DISTINCT</span>
+                        s.接单公司,
+                        s.BusinessType,
+                        s.Ladder_Id,
+                        s.SchemeName
+                    <span class="keyword">FROM</span> 方案拆分 s
+                ),
+                <span class="comment">-- 5. 提成计算</span>
+                提成计算 <span class="keyword">AS</span> (
+                    <span class="keyword">SELECT</span>
+                        m.接单公司,
+                        m.实际业务大类,
+                        m.业务员,
+                        m.月度,
+                        m.毛利金额,
+                        sm.Ladder_Id,
+                        sm.SchemeName,
+                        (<span class="keyword">SELECT</span> <span class="func">MAX</span>(CommissionRate)
+                         <span class="keyword">FROM</span> <span class="table-name">Zj_CommissionLadder</span> l
+                         <span class="keyword">WHERE</span> l.Ladder_Id = sm.Ladder_Id) <span class="keyword">AS</span> 最高提成比例,
+                        (<span class="keyword">SELECT</span> <span class="keyword">TOP</span> 1 l.CommissionRate
+                         <span class="keyword">FROM</span> <span class="table-name">Zj_CommissionLadder</span> l
+                         <span class="keyword">WHERE</span> l.Ladder_Id = sm.Ladder_Id
+                           <span class="keyword">AND</span> (l.MinAmount <span class="keyword">IS NULL</span> <span class="keyword">OR</span> <span class="func">ABS</span>(m.毛利金额) &gt;= l.MinAmount)
+                           <span class="keyword">AND</span> (l.MaxAmount <span class="keyword">IS NULL</span> <span class="keyword">OR</span> <span class="func">ABS</span>(m.毛利金额) &lt; l.MaxAmount)
+                         <span class="keyword">ORDER BY</span> l.LadderSeq) <span class="keyword">AS</span> 匹配提成比例
+                    <span class="keyword">FROM</span> 毛利数据 m
+                    <span class="keyword">LEFT JOIN</span> 方案匹配 sm
+                        <span class="keyword">ON</span> m.接单公司 = sm.接单公司
+                        <span class="keyword">AND</span> m.实际业务大类 = sm.BusinessType
+                )
+                <span class="comment">-- 6. 最终输出</span>
+                <span class="keyword">SELECT</span>
+                    t.接单公司,
+                    t.实际业务大类 <span class="keyword">AS</span> 业务大类,
+                    t.业务员,
+                    t.月度,
+                    <span class="func">FORMAT</span>(<span class="func">GETDATE</span>(), <span class="string">'yyyy-MM'</span>) <span class="keyword">AS</span> 预估年月,
+                    t.毛利金额,
+                    <span class="string">'销售费用'</span> <span class="keyword">AS</span> 费用类型,
+                    <span class="string">''</span> <span class="keyword">AS</span> 业务类型,
+                    <span class="keyword">CASE</span>
+                        <span class="keyword">WHEN</span> t.Ladder_Id <span class="keyword">IS NULL</span> <span class="keyword">THEN</span> <span class="string">'未设置提成规则'</span>
+                        <span class="keyword">WHEN</span> t.毛利金额 &lt; 0 <span class="keyword">THEN</span>
+                            <span class="func">CONVERT</span>(VARCHAR(50), <span class="func">ROUND</span>(<span class="func">ISNULL</span>(t.最高提成比例, 0) * 100, 2)) + <span class="string">'% (负数毛利)'</span>
+                        <span class="keyword">ELSE</span>
+                            <span class="func">ISNULL</span>(
+                                <span class="func">CONVERT</span>(VARCHAR(50), <span class="func">ROUND</span>(t.匹配提成比例 * 100, 2)) + <span class="string">'%'</span>,
+                                <span class="func">CONVERT</span>(VARCHAR(50), <span class="func">ROUND</span>(<span class="func">ISNULL</span>(t.最高提成比例, 0) * 100, 2)) + <span class="string">'% (默认)'</span>
+                            )
+                    <span class="keyword">END</span> <span class="keyword">AS</span> 提成比例,
+                    <span class="keyword">CASE</span>
+                        <span class="keyword">WHEN</span> t.Ladder_Id <span class="keyword">IS NULL</span> <span class="keyword">THEN</span> 0
+                        <span class="keyword">WHEN</span> t.毛利金额 &lt; 0 <span class="keyword">THEN</span>
+                            <span class="func">ROUND</span>(t.毛利金额 * <span class="func">ISNULL</span>(t.最高提成比例, 0), 2)
+                        <span class="keyword">ELSE</span>
+                            <span class="func">ROUND</span>(t.毛利金额 * <span class="func">ISNULL</span>(t.匹配提成比例, <span class="func">ISNULL</span>(t.最高提成比例, 0)), 2)
+                    <span class="keyword">END</span> <span class="keyword">AS</span> 提成金额
+                <span class="keyword">FROM</span> 提成计算 t
+                <span class="keyword">ORDER BY</span> t.接单公司, t.实际业务大类, t.业务员, t.月度;
+            </div>
+        </div>
+
+        <div class="footnote">
+            <strong>说明</strong>：文档中的 SQL 代码已做格式化处理，实际使用时请根据数据库环境调整参数占位符 <code>$DE_PARAM{...}</code>。
+        </div>
+
+    </div>
+
+    <script>
+        function toggleAppendix() {
+            const el = document.getElementById('appendixSql');
+            el.classList.toggle('open');
+        }
+    </script>
+</body>
+</html>
