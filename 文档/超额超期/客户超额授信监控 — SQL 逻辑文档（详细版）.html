@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>客户超额授信监控 — SQL 逻辑文档（详细版）</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: #f5f7fc;
+            color: #1e293b;
+            padding: 40px 20px;
+            line-height: 1.7;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.06);
+            padding: 50px 55px;
+        }
+
+        .doc-header {
+            border-bottom: 3px solid #eef2f7;
+            padding-bottom: 25px;
+            margin-bottom: 35px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            flex-wrap: wrap;
+        }
+
+        .doc-header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            color: #0f172a;
+            letter-spacing: -0.3px;
+        }
+
+        .doc-header .subtitle {
+            font-size: 16px;
+            color: #64748b;
+            margin-top: 4px;
+            font-weight: 400;
+        }
+
+        .doc-header .meta {
+            text-align: right;
+            color: #94a3b8;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .doc-header .meta strong {
+            color: #475569;
+        }
+
+        h2 {
+            font-size: 22px;
+            font-weight: 600;
+            color: #0f172a;
+            margin-top: 40px;
+            margin-bottom: 18px;
+            padding-left: 14px;
+            border-left: 5px solid #3b82f6;
+        }
+
+        h3 {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1e293b;
+            margin-top: 28px;
+            margin-bottom: 12px;
+        }
+
+        h4 {
+            font-size: 15px;
+            font-weight: 600;
+            color: #334155;
+            margin-top: 18px;
+            margin-bottom: 6px;
+        }
+
+        p {
+            margin-bottom: 12px;
+            color: #334155;
+        }
+
+        .badge {
+            display: inline-block;
+            background: #dbeafe;
+            color: #1d4ed8;
+            font-size: 13px;
+            font-weight: 600;
+            padding: 0 10px;
+            border-radius: 30px;
+            line-height: 26px;
+            margin-right: 6px;
+        }
+
+        .badge.green {
+            background: #dcfce7;
+            color: #15803d;
+        }
+
+        .badge.orange {
+            background: #fef3c7;
+            color: #b45309;
+        }
+
+        .badge.purple {
+            background: #ede9fe;
+            color: #7c3aed;
+        }
+
+        .badge.red {
+            background: #fee2e2;
+            color: #b91c1c;
+        }
+
+        .step-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin: 20px 0 10px;
+        }
+
+        .step-card {
+            background: #f8fafc;
+            border-radius: 14px;
+            padding: 18px 22px 22px;
+            border: 1px solid #e9edf4;
+            transition: 0.2s;
+        }
+
+        .step-card:hover {
+            border-color: #b9c7e0;
+            background: #f1f5f9;
+        }
+
+        .step-card .step-num {
+            display: inline-block;
+            background: #3b82f6;
+            color: #fff;
+            font-weight: 700;
+            font-size: 14px;
+            width: 30px;
+            height: 30px;
+            text-align: center;
+            line-height: 30px;
+            border-radius: 30px;
+            margin-bottom: 10px;
+        }
+
+        .step-card .step-title {
+            font-weight: 600;
+            font-size: 17px;
+            color: #0f172a;
+            margin-bottom: 4px;
+        }
+
+        .step-card .step-desc {
+            font-size: 14px;
+            color: #475569;
+            margin-bottom: 6px;
+        }
+
+        .step-card .step-sql {
+            font-size: 13px;
+            color: #64748b;
+            background: #eef2f7;
+            padding: 4px 10px;
+            border-radius: 8px;
+            display: inline-block;
+            font-family: "SF Mono", Menlo, Consolas, monospace;
+            margin-top: 4px;
+        }
+
+        .table-wrap {
+            overflow-x: auto;
+            margin: 18px 0 10px;
+            border-radius: 14px;
+            border: 1px solid #e9edf4;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        table thead {
+            background: #f1f5f9;
+        }
+
+        table th {
+            text-align: left;
+            padding: 12px 16px;
+            font-weight: 600;
+            color: #1e293b;
+            font-size: 13px;
+            letter-spacing: 0.3px;
+            border-bottom: 2px solid #dce1ea;
+        }
+
+        table td {
+            padding: 11px 16px;
+            border-bottom: 1px solid #eef2f7;
+            vertical-align: top;
+            color: #1e293b;
+        }
+
+        table tbody tr:hover {
+            background: #fafcff;
+        }
+
+        table .col-table {
+            font-family: "SF Mono", Menlo, Consolas, monospace;
+            font-size: 13px;
+            color: #0f172a;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        table .col-desc {
+            color: #334155;
+        }
+
+        table .col-source {
+            font-size: 12px;
+            color: #64748b;
+            white-space: nowrap;
+        }
+
+        .rule-list {
+            list-style: none;
+            padding: 0;
+            margin: 10px 0 6px;
+        }
+
+        .rule-list li {
+            padding: 10px 16px 10px 44px;
+            background: #f8fafc;
+            border-radius: 10px;
+            margin-bottom: 8px;
+            position: relative;
+            border-left: 3px solid #3b82f6;
+            color: #1e293b;
+            font-size: 14px;
+        }
+
+        .rule-list li::before {
+            content: "◆";
+            color: #3b82f6;
+            position: absolute;
+            left: 16px;
+            font-size: 12px;
+            top: 11px;
+        }
+
+        .rule-list li strong {
+            color: #0f172a;
+        }
+
+        .code-block {
+            background: #0f172a;
+            color: #e2e8f0;
+            border-radius: 14px;
+            padding: 20px 24px;
+            overflow-x: auto;
+            font-family: "SF Mono", Menlo, Consolas, monospace;
+            font-size: 13px;
+            line-height: 1.8;
+            margin: 16px 0 10px;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .code-block .comment {
+            color: #94a3b8;
+        }
+
+        .code-block .keyword {
+            color: #f472b6;
+        }
+
+        .code-block .func {
+            color: #60a5fa;
+        }
+
+        .code-block .string {
+            color: #34d399;
+        }
+
+        .code-block .table-name {
+            color: #fbbf24;
+        }
+
+        .flow {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: 6px 10px;
+            margin: 20px 0 14px;
+            padding: 18px 20px;
+            background: #f8fafc;
+            border-radius: 16px;
+            border: 1px solid #e9edf4;
+        }
+
+        .flow-item {
+            background: #ffffff;
+            border-radius: 30px;
+            padding: 8px 20px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #0f172a;
+            border: 1px solid #dce1ea;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+            white-space: nowrap;
+        }
+
+        .flow-item.highlight {
+            background: #3b82f6;
+            color: #fff;
+            border-color: #3b82f6;
+        }
+
+        .flow-arrow {
+            color: #94a3b8;
+            font-size: 20px;
+            font-weight: 300;
+        }
+
+        .detail-box {
+            background: #fafcff;
+            border-left: 4px solid #3b82f6;
+            padding: 16px 20px;
+            margin: 12px 0 16px;
+            border-radius: 8px;
+        }
+
+        .detail-box strong {
+            color: #0f172a;
+        }
+
+        .detail-box ul {
+            margin-left: 20px;
+            margin-top: 4px;
+        }
+
+        .detail-box ul li {
+            margin-bottom: 4px;
+        }
+
+        .footnote {
+            font-size: 13px;
+            color: #94a3b8;
+            margin-top: 6px;
+            border-top: 1px solid #eef2f7;
+            padding-top: 14px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 25px 18px;
+            }
+
+            .doc-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .doc-header .meta {
+                text-align: left;
+                margin-top: 10px;
+            }
+
+            .flow {
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            .flow-arrow {
+                transform: rotate(90deg);
+            }
+
+            .step-grid {
+                grid-template-columns: 1fr;
+            }
+
+            table td,
+            table th {
+                padding: 8px 10px;
+                font-size: 13px;
+            }
+
+            .code-block {
+                font-size: 12px;
+                padding: 14px 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+
+        <!-- ========== 文档头部 ========== -->
+        <div class="doc-header">
+            <div>
+                <h1>📊 客户超额授信监控 &mdash; SQL 逻辑文档（详细版）</h1>
+                <div class="subtitle">计算客户未收金额与授信额度的差额，识别超额风险</div>
+            </div>
+            <div class="meta">
+                <strong>版本</strong> V1.0<br />
+                <strong>更新</strong> 2026-06-30<br />
+                <strong>数据库</strong> MySQL（兼容 SQL Server）
+            </div>
+        </div>
+
+        <!-- ========== 一、概述 ========== -->
+        <h2>一、概述</h2>
+        <p>
+            本 SQL 用于监控客户的信用使用情况，核心目标是：<strong>计算每个客户的应收未收金额（即“未收金额”），并与客户当前的授信额度（永久额度 + 临时额度）进行比较，判断是否“超额”</strong>。业务人员可以通过此报表快速发现信用风险客户，及时采取跟催或调整授信措施。
+        </p>
+        <p>
+            查询逻辑分为 <strong>4 个逻辑层</strong>（CTE），层层递进：先计算每一笔收入明细的未收金额，再汇总客户总额，然后获取客户授信额度（虚拟合同 + 临时授信），最后合并计算差额与状态。
+        </p>
+
+        <!-- ========== 二、整体逻辑流程 ========== -->
+        <h2>二、整体逻辑流程</h2>
+        <div class="flow">
+            <span class="flow-item">📄 CostItemDetail</span>
+            <span class="flow-arrow">→</span>
+            <span class="flow-item">📊 CustomerTotal</span>
+            <span class="flow-arrow">→</span>
+            <span class="flow-item">🔗 关联合同 &amp; 临时额度</span>
+            <span class="flow-arrow">→</span>
+            <span class="flow-item highlight">📈 最终输出（超额状态）</span>
+        </div>
+
+        <div class="step-grid">
+            <div class="step-card">
+                <div class="step-num">1</div>
+                <div class="step-title">CostItemDetail</div>
+                <div class="step-desc">计算每笔收入明细的未收金额（本位币）</div>
+                <span class="step-sql">CTE: CostItemDetail</span>
+            </div>
+            <div class="step-card">
+                <div class="step-num">2</div>
+                <div class="step-title">ValidTempCredit</div>
+                <div class="step-desc">获取当前有效的临时授信额度</div>
+                <span class="step-sql">CTE: ValidTempCredit</span>
+            </div>
+            <div class="step-card">
+                <div class="step-num">3</div>
+                <div class="step-title">CustomerTotal</div>
+                <div class="step-desc">按客户汇总总未收金额</div>
+                <span class="step-sql">CTE: CustomerTotal</span>
+            </div>
+            <div class="step-card">
+                <div class="step-num">4</div>
+                <div class="step-title">最终输出</div>
+                <div class="step-desc">关联合同授信与临时额度，计算超额差额与状态</div>
+                <span class="step-sql">SELECT 最终</span>
+            </div>
+        </div>
+
+        <!-- ========== 三、详细逻辑说明 ========== -->
+        <h2>三、详细逻辑说明</h2>
+
+        <!-- ===== 步骤1：CostItemDetail ===== -->
+        <h3>步骤 1：CostItemDetail（计算单笔未收金额）</h3>
+        <div class="detail-box">
+            <p><strong>🎯 业务目标</strong><br />
+            从成本明细表中提取所有收入记录（<code>Ioid = 1</code>），计算每一笔的<strong>未收金额</strong>（即“应收 - 已收”），并考虑汇率转换，将外币金额统一折算为本位币。
+            </p>
+            <p><strong>📥 数据来源</strong></p>
+            <ul>
+                <li><strong>f9_Costitem</strong>（成本明细表）：记录了每一笔收支的金额、已收金额、汇率符号和汇率值。</li>
+            </ul>
+            <p><strong>⚙️ 计算逻辑</strong></p>
+            <ul>
+                <li>只取收入记录（<code>Ioid = 1</code>）。</li>
+                <li><strong>未收金额</strong> = <code>(原始金额 - 已收金额)</code>，然后根据 <code>ChgSign</code> 进行汇率折算：
+                    <ul>
+                        <li>若 <code>ChgSign = '*'</code>，则乘以 <code>ChgRate</code>（汇率）；</li>
+                        <li>若 <code>ChgSign = '/'</code>，则除以 <code>ChgRate</code>；</li>
+                        <li>否则直接取原值（即本币）。</li>
+                    </ul>
+                </li>
+                <li>最终结果保留 2 位小数，并命名为 <code>单笔未收本位币</code>。</li>
+            </ul>
+            <p><strong>📤 输出字段</strong></p>
+            <ul>
+                <li><code>CostId</code>：成本单ID，用于后续关联。</li>
+                <li><code>单笔未收本位币</code>：该笔收入的未收金额（本位币）。</li>
+            </ul>
+            <p><strong>💡 业务解释</strong><br />
+            每一笔收入在系统中都有“原始金额”（可能是外币）和“已收金额”（已收回的本位币）。通过汇率折算后，我们得到该笔收入还剩余多少未收回的金额。
+            </p>
+        </div>
+
+        <!-- ===== 步骤2：ValidTempCredit ===== -->
+        <h3>步骤 2：ValidTempCredit（获取有效临时授信）</h3>
+        <div class="detail-box">
+            <p><strong>🎯 业务目标</strong><br />
+            从临时授信表中获取当前有效的<strong>临时授信额度</strong>（类型为 <code>TempType = 'C'</code>），用于后续叠加到总授信中。
+            </p>
+            <p><strong>📥 数据来源</strong></p>
+            <ul>
+                <li><strong>f9_CusCredit</strong>（临时授信表）：存储临时额度或临时账期调整记录。</li>
+            </ul>
+            <p><strong>⚙️ 计算逻辑</strong></p>
+            <ul>
+                <li>筛选条件：
+                    <ul>
+                        <li><code>TempType = 'C'</code>（授信调整类型）；</li>
+                        <li><code>ApproveStatus = '结束'</code>（已审批通过）；</li>
+                        <li><code>CURDATE() BETWEEN EffDate AND ExpDate</code>（当前日期在有效期内）。</li>
+                    </ul>
+                </li>
+                <li>取 <code>TempCredit</code> 作为临时额度，并关联到虚拟合同ID（<code>CusBcId</code>）。</li>
+            </ul>
+            <p><strong>📤 输出字段</strong></p>
+            <ul>
+                <li><code>CusBcId</code>：关联的虚拟合同ID。</li>
+                <li><code>临时额度</code>：当前有效的临时授信金额。</li>
+            </ul>
+            <p><strong>💡 业务解释</strong><br />
+            企业有时会给客户授予临时授信（如促销期间增加额度），这些临时授信有固定的有效期。我们只取当前仍在有效期内的记录。
+            </p>
+        </div>
+
+        <!-- ===== 步骤3：CustomerTotal ===== -->
+        <h3>步骤 3：CustomerTotal（汇总客户总未收金额）</h3>
+        <div class="detail-box">
+            <p><strong>🎯 业务目标</strong><br />
+            将所有收入明细按客户（<code>Entrust</code>，即委托客户）汇总，计算每个客户的<strong>总未收金额</strong>。
+            </p>
+            <p><strong>📥 数据来源</strong></p>
+            <ul>
+                <li><strong>f9_Cost</strong>（成本单主表）：提供客户名称（<code>Entrust</code>）。</li>
+                <li><strong>CostItemDetail</strong>（上一步得到的明细未收金额）。</li>
+            </ul>
+            <p><strong>⚙️ 计算逻辑</strong></p>
+            <ul>
+                <li>内连接 <code>f9_Cost</code> 和 <code>CostItemDetail</code>，按成本单ID关联。</li>
+                <li>按 <code>Entrust</code> 分组，使用 <code>SUM</code> 汇总未收金额，得到 <code>客户总未收本位币</code>。</li>
+                <li>只保留客户名称非空且未收金额 > 0 的客户（实际查询中在最终筛选，此处先汇总）。</li>
+            </ul>
+            <p><strong>📤 输出字段</strong></p>
+            <ul>
+                <li><code>客户名称</code>：委托客户名称。</li>
+                <li><code>客户总未收本位币</code>：该客户所有未收金额的总和。</li>
+            </ul>
+            <p><strong>💡 业务解释</strong><br />
+            一个客户可能有多笔业务，每笔业务都有未收金额。我们需要加总得到该客户的整体应收余额，用于与授信额度比较。
+            </p>
+        </div>
+
+        <!-- ===== 步骤4：最终输出 ===== -->
+        <h3>步骤 4：最终输出（计算授信额度、差额与状态）</h3>
+        <div class="detail-box">
+            <p><strong>🎯 业务目标</strong><br />
+            将客户总未收金额与授信额度（永久额度 + 临时额度）进行比较，计算超额差额，并标记“超额”或“正常”状态，同时补充业务员信息。
+            </p>
+            <p><strong>📥 数据来源</strong></p>
+            <ul>
+                <li><strong>CustomerTotal</strong>：客户总未收金额。</li>
+                <li><strong>f9_CusContract</strong>：合同表（取 <code>CtClass = '虚拟账期合同'</code> 的 <code>CreditAmount</code> 作为永久授信基础）。</li>
+                <li><strong>ValidTempCredit</strong>：临时授信额度。</li>
+                <li><strong>f9_Customer</strong>：客户基础信息表（获取业务员 <code>Owner</code>）。</li>
+            </ul>
+            <p><strong>⚙️ 计算逻辑</strong></p>
+            <ul>
+                <li><strong>授信额度</strong> = <code>COALESCE(虚拟合同CreditAmount, 0) + COALESCE(临时额度, 0)</code>。</li>
+                <li><strong>超额差额</strong> = <code>客户总未收本位币 - 授信额度</code>，若 >0 则表示超额。</li>
+                <li><strong>授信状态</strong>：若 <code>客户总未收本位币 > 授信额度</code> 则为“超额”，否则为“正常”。</li>
+                <li><strong>关联客户表</strong>：通过子查询按 <code>CusName</code> 分组去重，取 <code>MAX(Owner)</code> 作为业务员，确保一个客户只对应一个业务员，避免因多行导致重复。</li>
+                <li><strong>过滤</strong>：排除内部公司（<code>f9_Company</code> 表中存在的客户），只显示外部客户。</li>
+            </ul>
+            <p><strong>📤 最终输出字段</strong></p>
+            <ul>
+                <li><strong>客户名称</strong>：委托客户名称。</li>
+                <li><strong>业务员</strong>：该客户的负责业务员。</li>
+                <li><strong>客户总未收本位币</strong>：客户当前所有未收金额之和。</li>
+                <li><strong>客户授信额度</strong>：永久授信 + 临时授信（若无则默认为0）。</li>
+                <li><strong>超额差额</strong>：未收金额 - 授信额度（正数表示超额）。</li>
+                <li><strong>授信状态</strong>：超额 / 正常。</li>
+            </ul>
+            <p><strong>💡 业务解释</strong><br />
+            通过比较未收金额和授信额度，我们可以快速知道哪些客户已经超出了信用限额，需要重点催收或调整授信政策。超额差额越大，风险越高。
+            </p>
+        </div>
+
+        <!-- ========== 四、数据表与字段含义 ========== -->
+        <h2>四、涉及的数据表说明（简单版）</h2>
+        <p>为了让不熟悉数据库结构的读者也能理解，下面用通俗语言解释每张表的作用。</p>
+
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>表名</th><th>通俗说明</th><th>关键字段</th></tr></thead>
+                <tbody>
+                    <tr><td class="col-table">f9_Cost</td><td class="col-desc">成本单主表，记录了每笔业务的基本信息，包括客户（委托方）、业务员等。</td><td class="col-source">Id（成本单号）、Entrust（委托客户）</td></tr>
+                    <tr><td class="col-table">f9_Costitem</td><td class="col-desc">成本明细表，记录了每笔业务的具体收支项目，如收入、费用，以及金额、已收金额、汇率等。</td><td class="col-source">CostId（关联成本单）、Ioid（收支标识）、Amount（金额）、Ysje（已收金额）、ChgSign（汇率符号）、ChgRate（汇率）</td></tr>
+                    <tr><td class="col-table">f9_CusContract</td><td class="col-desc">合同表，存储所有合同信息，其中“虚拟账期合同”用于记录客户的永久授信额度。</td><td class="col-source">Id、CusFullName（客户全称）、CtClass（合同类型）、CreditAmount（信用额度）</td></tr>
+                    <tr><td class="col-table">f9_CusCredit</td><td class="col-desc">临时授信表，记录客户临时申请的额度或账期调整，有生效和失效日期。</td><td class="col-source">CusBcId（关联合同ID）、TempType（类型）、TempCredit（临时额度）、EffDate/ExpDate（有效期）</td></tr>
+                    <tr><td class="col-table">f9_Customer</td><td class="col-desc">客户基础信息表，存储客户的基本资料，如业务员（Owner）等。</td><td class="col-source">CusName（客户名称）、Owner（负责业务员）</td></tr>
+                    <tr><td class="col-table">f9_Company</td><td class="col-desc">公司信息表，记录了内部公司的名称，用于排除内部公司数据。</td><td class="col-source">CusName（公司名称）</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- ========== 五、关键字段计算说明 ========== -->
+        <h2>五、关键字段的计算规则</h2>
+        <ul class="rule-list">
+            <li><strong>未收金额</strong>：<br />
+                <code>单笔未收本位币 = (原始金额 - 已收金额) × 汇率</code><br />
+                其中汇率根据 <code>ChgSign</code> 决定是乘还是除，若无汇率则视为1。
+            </li>
+            <li><strong>客户总未收金额</strong>：<br />
+                将同一客户所有未收金额相加。
+            </li>
+            <li><strong>客户授信额度</strong>：<br />
+                <code>授信额度 = 虚拟合同上的CreditAmount + 有效的临时授信TempCredit</code><br />
+                若两者都没有（或为0），则授信额度为0。
+            </li>
+            <li><strong>超额差额</strong>：<br />
+                <code>超额差额 = 客户总未收金额 - 客户授信额度</code><br />
+                正数表示已经超额。
+            </li>
+            <li><strong>授信状态</strong>：<br />
+                若 <code>客户总未收金额 > 客户授信额度</code>，则状态为“超额”，否则为“正常”。
+            </li>
+        </ul>
+
+        <!-- ========== 六、业务规则说明 ========== -->
+        <h2>六、业务规则说明</h2>
+        <ul class="rule-list">
+            <li><strong>只统计未收金额 > 0 的客户</strong>：如果客户所有收入已经收回，则无需关注，不输出。</li>
+            <li><strong>排除内部公司</strong>：内部公司的业务不参与客户信用监控，通过 <code>NOT IN (SELECT ... FROM f9_Company)</code> 过滤。</li>
+            <li><strong>临时授信有效期</strong>：只取当前日期在生效和失效日期之间的记录。</li>
+            <li><strong>永久授信取值</strong>：取客户 <code>虚拟账期合同</code> 中的 <code>CreditAmount</code>，若无虚拟合同则为0。</li>
+            <li><strong>业务员去重</strong>：同一个客户在客户表中可能有多条记录（如多部门），通过 <code>MAX(Owner)</code> 只取一个业务员，保证输出行数不膨胀。</li>
+        </ul>
+
+        <!-- ========== 七、输出结果说明 ========== -->
+        <h2>七、输出结果说明</h2>
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>输出字段</th><th>含义</th><th>示例</th></tr></thead>
+                <tbody>
+                    <tr><td class="col-table">客户名称</td><td class="col-desc">委托客户的全称</td><td class="col-source">香港聚萬特有限公司</td></tr>
+                    <tr><td class="col-table">业务员</td><td class="col-desc">负责该客户的业务员姓名</td><td class="col-source">张三</td></tr>
+                    <tr><td class="col-table">客户总未收本位币</td><td class="col-desc">该客户所有未收金额之和（保留2位小数）</td><td class="col-source">125,800.50</td></tr>
+                    <tr><td class="col-table">客户授信额度</td><td class="col-desc">永久授信 + 临时授信的总和</td><td class="col-source">100,000.00</td></tr>
+                    <tr><td class="col-table">超额差额</td><td class="col-desc">未收金额 - 授信额度（正数表示超额）</td><td class="col-source">25,800.50</td></tr>
+                    <tr><td class="col-table">授信状态</td><td class="col-desc">超额 / 正常</td><td class="col-source">超额</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <p style="font-size:14px;color:#64748b;margin-top:6px;">
+            💡 结果按“授信状态”降序排列（超额在前），同一状态内按“客户总未收金额”降序，方便重点关注风险最大的客户。
+        </p>
+
+        <!-- ========== 八、附录：完整 SQL 代码（MySQL 版） ========== -->
+        <h2 style="margin-top:44px;">附录：完整 SQL 代码（MySQL）</h2>
+        <p style="font-size:14px;color:#64748b;margin-bottom:6px;">
+            下方为完整 SQL，包含所有 CTE 和最终查询。若在 SQL Server 中使用，请将 <code>CURDATE()</code> 替换为 <code>GETDATE()</code>。
+        </p>
+        <div class="code-block">
+            <span class="comment">-- ============================================================</span>
+            <span class="comment">-- 客户超额授信监控 SQL</span>
+            <span class="comment">-- 数据库：MySQL 兼容</span>
+            <span class="comment">-- ============================================================</span>
+
+            <span class="keyword">WITH</span>
+            <span class="comment">-- 1. 计算每笔收入明细的未收金额（本位币）</span>
+            CostItemDetail <span class="keyword">AS</span> (
+                <span class="keyword">SELECT</span>
+                    ci.CostId,
+                    ci.Amount,
+                    ci.ChgSign,
+                    ci.ChgRate,
+                    <span class="func">COALESCE</span>(ci.Ysje, 0) <span class="keyword">AS</span> Ysje,
+                    <span class="func">ROUND</span>(<span class="func">COALESCE</span>(<span class="keyword">CASE</span>
+                        <span class="keyword">WHEN</span> ci.ChgSign = <span class="string">'*'</span> <span class="keyword">THEN</span> (ci.Amount - <span class="func">COALESCE</span>(ci.Ysje, 0)) * <span class="func">COALESCE</span>(ci.ChgRate, 1)
+                        <span class="keyword">WHEN</span> ci.ChgSign = <span class="string">'/'</span> <span class="keyword">THEN</span> (ci.Amount - <span class="func">COALESCE</span>(ci.Ysje, 0)) / <span class="func">COALESCE</span>(ci.ChgRate, 1)
+                        <span class="keyword">ELSE</span> ci.Amount - <span class="func">COALESCE</span>(ci.Ysje, 0)
+                    <span class="keyword">END</span>, 0), 2) <span class="keyword">AS</span> 单笔未收本位币
+                <span class="keyword">FROM</span> <span class="table-name">f9_Costitem</span> ci
+                <span class="keyword">WHERE</span> ci.Ioid = 1
+            ),
+            <span class="comment">-- 2. 获取当前有效的临时授信额度</span>
+            ValidTempCredit <span class="keyword">AS</span> (
+                <span class="keyword">SELECT</span>
+                    CusBcId,
+                    TempCredit <span class="keyword">AS</span> 临时额度
+                <span class="keyword">FROM</span> <span class="table-name">f9_CusCredit</span>
+                <span class="keyword">WHERE</span>
+                    TempType = <span class="string">'C'</span>
+                    <span class="keyword">AND</span> ApproveStatus = <span class="string">'结束'</span>
+                    <span class="keyword">AND</span> <span class="func">CURDATE</span>() <span class="keyword">BETWEEN</span> EffDate <span class="keyword">AND</span> ExpDate
+            ),
+            <span class="comment">-- 3. 按客户汇总总未收金额</span>
+            CustomerTotal <span class="keyword">AS</span> (
+                <span class="keyword">SELECT</span>
+                    c.Entrust <span class="keyword">AS</span> 客户名称,
+                    <span class="func">SUM</span>(ci.单笔未收本位币) <span class="keyword">AS</span> 客户总未收本位币
+                <span class="keyword">FROM</span> <span class="table-name">f9_Cost</span> c
+                <span class="keyword">INNER JOIN</span> CostItemDetail ci <span class="keyword">ON</span> c.Id = ci.CostId
+                <span class="keyword">WHERE</span>
+                    c.Entrust <span class="keyword">IS NOT NULL</span> <span class="keyword">AND</span> c.Entrust &lt;&gt; <span class="string">''</span>
+                <span class="keyword">GROUP BY</span> c.Entrust
+            )
+            <span class="comment">-- 4. 最终查询：关联授信额度、客户表，计算超额状态</span>
+            <span class="keyword">SELECT</span>
+                ct.客户名称,
+                cust.Owner <span class="keyword">AS</span> 业务员,
+                ct.客户总未收本位币,
+                (<span class="func">COALESCE</span>(vtc.临时额度, 0) + <span class="func">COALESCE</span>(cc.CreditAmount, 0)) <span class="keyword">AS</span> 客户授信额度,
+                <span class="func">ROUND</span>(ct.客户总未收本位币 - (<span class="func">COALESCE</span>(vtc.临时额度, 0) + <span class="func">COALESCE</span>(cc.CreditAmount, 0)), 2) <span class="keyword">AS</span> 超额差额,
+                <span class="keyword">CASE</span>
+                    <span class="keyword">WHEN</span> ct.客户总未收本位币 &gt; (<span class="func">COALESCE</span>(vtc.临时额度, 0) + <span class="func">COALESCE</span>(cc.CreditAmount, 0)) <span class="keyword">THEN</span> <span class="string">'超额'</span>
+                    <span class="keyword">ELSE</span> <span class="string">'正常'</span>
+                <span class="keyword">END</span> <span class="keyword">AS</span> 授信状态
+            <span class="keyword">FROM</span> CustomerTotal ct
+            <span class="comment">-- 左关联虚拟合同（永久授信）</span>
+            <span class="keyword">LEFT JOIN</span> <span class="table-name">f9_CusContract</span> cc
+                <span class="keyword">ON</span> ct.客户名称 = cc.CusFullName
+                <span class="keyword">AND</span> cc.CtClass = <span class="string">'虚拟账期合同'</span>
+            <span class="comment">-- 左关联临时授信</span>
+            <span class="keyword">LEFT JOIN</span> ValidTempCredit vtc
+                <span class="keyword">ON</span> cc.Id = vtc.CusBcId
+            <span class="comment">-- 左关联客户表（去重取业务员）</span>
+            <span class="keyword">LEFT JOIN</span> (
+                <span class="keyword">SELECT</span> CusName, <span class="func">MAX</span>(Owner) <span class="keyword">AS</span> Owner
+                <span class="keyword">FROM</span> <span class="table-name">f9_Customer</span>
+                <span class="keyword">GROUP BY</span> CusName
+            ) cust <span class="keyword">ON</span> ct.客户名称 = cust.CusName
+            <span class="keyword">WHERE</span> ct.客户总未收本位币 &gt; 0
+                <span class="keyword">AND</span> <span class="keyword">NOT</span> (
+                    ct.客户名称 <span class="keyword">IN</span> (
+                        <span class="keyword">SELECT</span> <span class="keyword">DISTINCT</span>(cusname) <span class="keyword">FROM</span> <span class="table-name">f9_Company</span> <span class="keyword">WHERE</span> cusname != <span class="string">''</span>
+                    )
+                )
+            <span class="keyword">ORDER BY</span> 授信状态 <span class="keyword">DESC</span>, ct.客户总未收本位币 <span class="keyword">DESC</span>;
+        </div>
+
+        <!-- ========== 九、常见问题与注意事项 ========== -->
+        <h2>九、常见问题与注意事项</h2>
+        <ul class="rule-list">
+            <li><strong>为什么有些客户的授信额度为0？</strong><br />
+                可能原因：该客户没有虚拟账期合同（永久授信为空），且当前无有效的临时授信记录。此时授信额度为0，未收金额全部视为超额。
+            </li>
+            <li><strong>临时授信为什么可能没有关联上？</strong><br />
+                临时授信是通过 <code>CusBcId</code> 关联到虚拟合同的ID。如果虚拟合同不存在，则无法关联临时授信，临时额度为0。
+            </li>
+            <li><strong>业务员字段可能为空？</strong><br />
+                如果客户表（<code>f9_Customer</code>）中没有对应的 <code>CusName</code> 记录，则业务员为 <code>NULL</code>。这表示该客户信息不完整，需维护基础数据。
+            </li>
+            <li><strong>如何判断超额风险高低？</strong><br />
+                超额差额越大，表示客户占用授信额度越多，风险越高。建议重点关注超额金额较大的客户。
+            </li>
+            <li><strong>为什么排除了内部公司？</strong><br />
+                内部公司的业务不属于外部客户信用管理范畴，因此过滤掉，只分析真正的客户。
+            </li>
+        </ul>
+
+        <div class="footnote">
+            <strong>说明</strong>：本文档详细解释了客户超额授信监控 SQL 的每个步骤，用通俗语言帮助非技术人员理解业务逻辑。实际使用时，请根据数据库类型调整函数（如 <code>CURDATE()</code> 与 <code>GETDATE()</code>）。
+        </div>
+
+    </div>
+</body>
+</html>
