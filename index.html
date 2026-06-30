@@ -1,1 +1,54 @@
-<!doctype html><html><head><meta charset='utf-8'><link rel='stylesheet' href='assets/style.css'></head><body><header><h1>BI Docs Portal</h1><input placeholder='Search'></header><div id='tree'>Run generate-index.js to build navigation.</div><script src='assets/app.js'></script></body></html>
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>文档导航</title>
+<style>
+body { font-family: "Microsoft YaHei",sans-serif; margin:40px; background:#f5f5f5; }
+h1 { text-align:center; }
+ul { list-style:none; padding-left:25px; }
+li { margin:8px 0; }
+a { color:#1677ff; text-decoration:none; }
+a:hover { text-decoration:underline; }
+strong { font-size:18px; }
+.folder > strong { cursor: pointer; user-select: none; }
+.folder-children { display: block; }
+</style>
+</head>
+<body>
+<h1>📚 文档导航</h1>
+<ul>
+<li class="folder">
+    <strong>📁 文档</strong>
+    <ul class="folder-children">
+<li class="folder">
+    <strong>📁 超额超期</strong>
+    <ul class="folder-children">
+<li>📄 <a href="%E6%96%87%E6%A1%A3/%E8%B6%85%E9%A2%9D%E8%B6%85%E6%9C%9F/%E6%97%A0%E6%AD%A3%E5%BC%8F%E4%B8%9A%E5%8A%A1%E5%90%88%E5%90%8C%E5%AE%A2%E6%88%B7%E4%BF%A1%E6%81%AF.html">无正式业务合同客户信息</a></li></ul>
+</li>
+<li class="folder">
+    <strong>📁 销售预估提成</strong>
+    <ul class="folder-children">
+<li>📄 <a href="%E6%96%87%E6%A1%A3/%E9%94%80%E5%94%AE%E9%A2%84%E4%BC%B0%E6%8F%90%E6%88%90/%E6%B5%B7%E5%A4%96%E4%BB%93%E6%8F%90%E6%88%90%E8%AE%A1%E7%AE%97%20%E2%80%94%20SQL%20%E9%80%BB%E8%BE%91%E6%96%87%E6%A1%A3.html">海外仓提成计算 — SQL 逻辑文档</a></li>
+<li>📄 <a href="%E6%96%87%E6%A1%A3/%E9%94%80%E5%94%AE%E9%A2%84%E4%BC%B0%E6%8F%90%E6%88%90/%E5%AE%A2%E6%9C%8D%E6%8F%90%E6%88%90%E8%AE%A1%E7%AE%97%20%E2%80%94%20SQL%20%E9%80%BB%E8%BE%91%E6%96%87%E6%A1%A3.html">客服提成计算 — SQL 逻辑文档</a></li>
+<li>📄 <a href="%E6%96%87%E6%A1%A3/%E9%94%80%E5%94%AE%E9%A2%84%E4%BC%B0%E6%8F%90%E6%88%90/%E6%8F%90%E6%88%90%E9%98%B6%E6%A2%AF%E4%B8%8E%E6%96%B9%E6%A1%88%E8%A1%A8%E7%BB%93%E6%9E%84%E8%AF%B4%E6%98%8E.html">提成阶梯与方案表结构说明</a></li>
+<li>📄 <a href="%E6%96%87%E6%A1%A3/%E9%94%80%E5%94%AE%E9%A2%84%E4%BC%B0%E6%8F%90%E6%88%90/%E9%94%80%E5%94%AE%E6%8F%90%E6%88%90%E8%AE%A1%E7%AE%97%20SQL%20%E9%80%BB%E8%BE%91%E6%96%87%E6%A1%A3%EF%BC%88%E8%AF%A6%E7%BB%86%E7%89%88%EF%BC%89.html">销售提成计算 SQL 逻辑文档（详细版）</a></li></ul>
+</li></ul>
+</li></ul>
+<script>
+(function() {
+    document.querySelectorAll('.folder').forEach(folder => {
+        folder.addEventListener('click', function(e) {
+            if (e.target.closest('a')) return;
+            const children = this.querySelector('.folder-children');
+            if (!children) return;
+            if (children.contains(e.target)) return;
+            const display = window.getComputedStyle(children).display;
+            children.style.display = display === 'none' ? 'block' : 'none';
+        });
+    });
+})();
+</script>
+</body>
+</html>
