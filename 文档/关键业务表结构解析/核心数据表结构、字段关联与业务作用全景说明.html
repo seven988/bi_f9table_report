@@ -223,12 +223,19 @@
 
         .mermaid-container {
             background: #fafcff;
-            border: 1px solid #e9edf4;
-            border-radius: 14px;
-            padding: 20px;
-            margin: 16px 0;
-            display: flex;
-            justify-content: center;
+            border: 1px solid #dce1ea;
+            border-radius: 16px;
+            padding: 30px 20px;
+            margin: 20px 0 10px;
+            width: 100%;
+            overflow-x: auto; /* 如果内容过宽允许水平滚动 */
+        }
+
+        /* 让 Mermaid SVG 占满容器，并确保不缩放模糊 */
+        .mermaid-container .mermaid svg {
+            width: 100% !important;
+            height: auto !important;
+            max-width: 100%;
         }
 
         .footnote {
@@ -251,340 +258,348 @@
                 text-align: left;
                 margin-top: 10px;
             }
+            .mermaid-container {
+                padding: 15px 10px;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="container">
+<div class="container">
 
-        <!-- ========== 文档头部 ========== -->
-        <div class="doc-header">
-            <div>
-                <h1>🗂️ 核心数据表结构、字段关联与业务作用全景说明</h1>
-                <div class="subtitle">覆盖提成计算、授信控制、逾期监控等核心业务的数据字典与关系图谱</div>
-            </div>
-            <div class="meta">
-                <strong>版本</strong> V1.0<br />
-                <strong>更新</strong> 2026-06-30<br />
-                <strong>数据库</strong> SQL Server / MySQL 兼容
-            </div>
+    <!-- ========== 文档头部 ========== -->
+    <div class="doc-header">
+        <div>
+            <h1>🗂️ 核心数据表结构、字段关联与业务作用全景说明</h1>
+            <div class="subtitle">覆盖提成计算、授信控制、逾期监控等核心业务的数据字典与关系图谱</div>
         </div>
-
-        <!-- ========== 一、概述 ========== -->
-        <h2>一、概述</h2>
-        <p>
-            本系统涉及业务员提成、客服提成、授信额度管理、客户逾期监控等多个核心模块。这些模块虽然业务场景不同，但都建立在同一套核心数据模型之上。
-            本文档汇总了所有 SQL 逻辑中涉及到的 <strong>8 张核心表</strong>，从业务角度解释每张表的用途、关键字段含义，以及表与表之间的关联关系，帮助开发、运维及业务人员快速建立全局数据视图。
-        </p>
-        <p>
-            <span class="badge">📌 提示</span> 文中表名可能因系统版本不同带有 <code>f9_</code> 或 <code>Zj_</code> 前缀，但核心字段及业务含义是一致的。
-        </p>
-
-        <!-- ========== 二、ER 关系全景图 ========== -->
-        <h2>二、ER 关系全景图</h2>
-        <p>下图展示了核心表之间的关联关系，箭头方向表示数据流向或外键依赖。</p>
-        <div class="mermaid-container">
-            <div class="mermaid">
-                graph LR
-                    subgraph 业务交易层
-                        Cost[f9_Cost<br>成本单主表] -->|Id = CostId| Item[f9_Costitem<br>成本明细表]
-                        Cost -->|Entrust| Customer[f9_Customer<br>客户基础信息表]
-                        Contract[f9_CusContract<br>合同主表] -->|CusFullName| Customer
-                        Contract -->|Id = CusBcId| Credit[f9_CusCredit<br>临时授信表]
-                    end
-
-                    subgraph 授信控制层
-                        LogContract[zj_ContractImportLog<br>合同申请日志表] -->|自动同步| Contract
-                        LogCredit[zj_CreditImportLog<br>临时授信日志表] -->|自动同步| Credit
-                    end
-
-                    subgraph 提成配置层
-                        Scheme[Zj_CommissionScheme<br>提成方案表] -->|Ladder_Id| Ladder[Zj_CommissionLadder<br>提成阶梯表]
-                    end
-
-                    Cost -.->|关联业务员/客服| Scheme
-                    Customer -.->|关联客户归属| Scheme
-            </div>
+        <div class="meta">
+            <strong>版本</strong> V1.2<br />
+            <strong>更新</strong> 2026-06-30<br />
+            <strong>数据库</strong> SQL Server / MySQL 兼容
         </div>
-
-        <!-- ========== 三、核心表详细说明 ========== -->
-        <h2>三、核心表详细说明</h2>
-
-        <!-- 1. 客户基础信息表 -->
-        <h3>3.1 客户基础信息表（<code>f9_Customer</code> / <code>customer</code>）</h3>
-        <p><strong>📌 业务作用</strong>：存储所有客户（含外部客户和内部公司）的基础档案信息，是整个系统的核心主数据。</p>
-        <div class="table-wrap">
-            <table>
-                <thead><tr><th>字段名</th><th>业务含义</th><th>关联/计算说明</th></tr></thead>
-                <tbody>
-                    <tr><td class="col-field">Id</td><td>客户唯一标识（内部ID）</td><td>主键，用于系统内部关联</td></tr>
-                    <tr><td class="col-field">CusName / cusname</td><td>客户简称</td><td>常用于界面显示</td></tr>
-                    <tr><td class="col-field">CusFullName / cusfullnamechs</td><td>客户全称</td><td><strong>关键关联字段</strong>：与合同表（CusFullName）、成本表（Entrust）进行匹配</td></tr>
-                    <tr><td class="col-field">CusCd / cuscd</td><td>客户编码</td><td>业务系统唯一编码</td></tr>
-                    <tr><td class="col-field">Owner</td><td>负责业务员</td><td>用于超额监控报表中显示业务员信息</td></tr>
-                    <tr><td class="col-field">AccDays</td><td>默认账期天数</td><td>当合同未指定账期时，作为兜底值</td></tr>
-                </tbody>
-            </table>
-        </div>
-
-        <!-- 2. 公司信息表 -->
-        <h3>3.2 公司信息表（<code>f9_Company</code> / <code>Company</code>）</h3>
-        <p><strong>📌 业务作用</strong>：存储集团内部各分子公司信息，主要用于 <strong>过滤内部公司数据</strong>，避免将内部往来计入客户信用风险监控。</p>
-        <div class="table-wrap">
-            <table>
-                <thead><tr><th>字段名</th><th>业务含义</th><th>关联/计算说明</th></tr></thead>
-                <tbody>
-                    <tr><td class="col-field">CusName / shortname</td><td>公司名称</td><td>用于 <code>NOT IN</code> 子查询，排除内部公司</td></tr>
-                </tbody>
-            </table>
-        </div>
-
-        <!-- 3. 成本单主表 -->
-        <h3>3.3 成本单主表（<code>f9_Cost</code> / <code>Cost</code>）</h3>
-        <p><strong>📌 业务作用</strong>：记录每笔业务（订单/委托）的成本头信息，是提成计算和未收金额统计的起点。</p>
-        <div class="table-wrap">
-            <table>
-                <thead><tr><th>字段名</th><th>业务含义</th><th>关联/计算说明</th></tr></thead>
-                <tbody>
-                    <tr><td class="col-field">Id</td><td>成本单ID</td><td>主键，与明细表（CostItem）关联</td></tr>
-                    <tr><td class="col-field">Entrust</td><td>委托客户名称</td><td><strong>关键关联字段</strong>：与客户表全称匹配，用于汇总客户未收金额</td></tr>
-                    <tr><td class="col-field">Saler</td><td>业务员</td><td>用于销售提成归属（SchemeType='SALER'）及业务判断</td></tr>
-                    <tr><td class="col-field">Service / service</td><td>客服人员</td><td>用于客服提成归属（SchemeType='SERVICE'）</td></tr>
-                    <tr><td class="col-field">BizDate</td><td>业务日期</td><td>用于月度/季度提成周期聚合</td></tr>
-                    <tr><td class="col-field">BusWay</td><td>业务大类</td><td>如“跨境电商”、“代拉代报”，匹配提成方案中的 BusinessType</td></tr>
-                    <tr><td class="col-field">Cancelid</td><td>取消标识</td><td>='T' 表示已取消，计算时需过滤</td></tr>
-                </tbody>
-            </table>
-        </div>
-
-        <!-- 4. 成本明细表 -->
-        <h3>3.4 成本明细表（<code>f9_Costitem</code> / <code>CostItem</code>）</h3>
-        <p><strong>📌 业务作用</strong>：记录成本单下的每一笔收支明细。所有 <strong>未收金额</strong> 和 <strong>毛利</strong> 的计算均基于此表。</p>
-        <div class="table-wrap">
-            <table>
-                <thead><tr><th>字段名</th><th>业务含义</th><th>关联/计算说明</th></tr></thead>
-                <tbody>
-                    <tr><td class="col-field">CostId</td><td>关联成本单ID</td><td>外键，关联 Cost.Id</td></tr>
-                    <tr><td class="col-field">Ioid</td><td>收支标识</td><td>1 = 收入，-1 = 支出</td></tr>
-                    <tr><td class="col-field">Amount</td><td>原始金额</td><td>可能为外币</td></tr>
-                    <tr><td class="col-field">Ysje</td><td>已收金额（本位币）</td><td>用于计算未收金额：<code>未收 = Amount - Ysje</code></td></tr>
-                    <tr><td class="col-field">ChgSign</td><td>汇率符号</td><td>'*' 表示乘，'/' 表示除</td></tr>
-                    <tr><td class="col-field">ChgRate</td><td>汇率</td><td>用于将外币金额折算为本位币</td></tr>
-                    <tr><td class="col-field">redid</td><td>红冲标识</td><td>非 NULL 表示红冲记录，计算时需过滤（<code>IS NULL</code>）</td></tr>
-                    <tr><td class="col-field">WhoName</td><td>对方单位</td><td>用于排除内部公司（与 Company 表比对）</td></tr>
-                </tbody>
-            </table>
-        </div>
-        <div class="highlight-box">
-            <strong>🔑 核心计算逻辑（未收金额）</strong>：
-            <code>单笔未收本位币 = ROUND( (Amount - ISNULL(Ysje,0)) * 汇率 , 2 )</code><br />
-            其中汇率根据 <code>ChgSign</code> 决定：'*' 则乘 <code>ChgRate</code>，'/' 则除 <code>ChgRate</code>，否则为 1。
-        </div>
-
-        <!-- 5. 合同主表 -->
-        <h3>3.5 合同主表（<code>f9_CusContract</code> / <code>CusContract</code>）</h3>
-        <p><strong>📌 业务作用</strong>：存储所有合同信息，包括 <strong>正式业务合同</strong>（决定永久授信额度）和 <strong>虚拟账期合同</strong>（承载临时授信与账期）。</p>
-        <div class="table-wrap">
-            <table>
-                <thead><tr><th>字段名</th><th>业务含义</th><th>关联/计算说明</th></tr></thead>
-                <tbody>
-                    <tr><td class="col-field">Id</td><td>合同ID</td><td>主键，被 CusCredit 表引用（CusBcId）</td></tr>
-                    <tr><td class="col-field">CusFullName</td><td>客户全称</td><td>关联客户表</td></tr>
-                    <tr><td class="col-field">CtClass</td><td>合同类型</td><td><code>'虚拟账期合同'</code> 为虚拟合同，其他为正式合同</td></tr>
-                    <tr><td class="col-field">CreditAmount</td><td>信用额度</td><td>正式合同中为永久授信；虚拟合同中为基础额度</td></tr>
-                    <tr><td class="col-field">AccDays</td><td>账期天数</td><td>记录合同约定的账期</td></tr>
-                    <tr><td class="col-field">EffDate</td><td>生效日期</td><td>合同开始日期</td></tr>
-                    <tr><td class="col-field">ExpDate</td><td>失效日期</td><td>合同结束日期（需结合 AutoNewId 判断顺延）</td></tr>
-                    <tr><td class="col-field">CancelId</td><td>取消标识</td><td>='T' 表示已取消</td></tr>
-                    <tr><td class="col-field">ApproveStatus</td><td>审批状态</td><td>='结束' 表示已审批通过</td></tr>
-                    <tr><td class="col-field">AutoNewId</td><td>自动顺延标识</td><td>='T' 表示合同到期自动顺延</td></tr>
-                    <tr><td class="col-field">DeferredYears</td><td>顺延年限</td><td>自动顺延的年数</td></tr>
-                </tbody>
-            </table>
-        </div>
-        <div class="highlight-box">
-            <strong>🔑 核心业务规则（永久授信）</strong>：<br />
-            客户的 <strong>永久授信额度</strong> = 该客户所有 <strong>有效正式合同</strong>（非虚拟、未取消、审批结束、在有效期内）中 <code>CreditAmount</code> 的 <strong>最大值</strong>（非总和）。<br />
-            OA 调整永久额度的本质是修改某个具体正式合同的 <code>CreditAmount</code>。
-        </div>
-
-        <!-- 6. 临时授信表 -->
-        <h3>3.6 临时授信表（<code>f9_CusCredit</code> / <code>CusCredit</code>）</h3>
-        <p><strong>📌 业务作用</strong>：存储客户的 <strong>临时额度</strong> 和 <strong>临时账期</strong> 调整记录。每个类型（TempType）同一时间只会有一条有效记录。</p>
-        <div class="table-wrap">
-            <table>
-                <thead><tr><th>字段名</th><th>业务含义</th><th>关联/计算说明</th></tr></thead>
-                <tbody>
-                    <tr><td class="col-field">Id</td><td>记录ID</td><td>主键</td></tr>
-                    <tr><td class="col-field">CusBcId</td><td>关联合同ID</td><td>外键，关联 <code>CusContract.Id</code>（通常关联虚拟合同）</td></tr>
-                    <tr><td class="col-field">TempType</td><td>临时类型</td><td>'C' = 授信额度调整；'A' = 临时账期调整</td></tr>
-                    <tr><td class="col-field">TempCredit</td><td>临时额度/账期值</td><td>当 TempType='C' 时为额度金额；TempType='A' 时为账期天数</td></tr>
-                    <tr><td class="col-field">EffDate</td><td>生效日期</td><td>临时调整的生效日</td></tr>
-                    <tr><td class="col-field">ExpDate</td><td>失效日期</td><td>临时调整的失效日</td></tr>
-                    <tr><td class="col-field">ApproveStatus</td><td>审批状态</td><td>='结束' 表示已审批</td></tr>
-                </tbody>
-            </table>
-        </div>
-        <div class="highlight-box">
-            <strong>🔑 核心业务规则（临时额度/账期）</strong>：<br />
-            系统保证 <strong>同一 <code>CusBcId</code> + 同一 <code>TempType</code></strong> 在有效期内 <strong>只有一条记录</strong>（通过应用层或触发器控制）。<br />
-            查询时直接取 <code>GETDATE() BETWEEN EffDate AND ExpDate</code> 的记录即可。
-        </div>
-
-        <!-- 7. 日志中转表 -->
-        <h3>3.7 日志中转表（<code>zj_ContractImportLog</code> / <code>zj_CreditImportLog</code>）</h3>
-        <p><strong>📌 业务作用</strong>：作为 OA 系统与 F9 业务系统的 <strong>数据中转站</strong>。OA 审批通过后将数据写入日志表，由触发器自动同步到核心业务表（CusContract / CusCredit）。</p>
-        <div class="table-wrap">
-            <table>
-                <thead><tr><th>表名</th><th>用途</th><th>关键字段</th></tr></thead>
-                <tbody>
-                    <tr><td><code>zj_ContractImportLog</code></td><td>合同申请日志</td><td><code>CtNo, CtClass, CusName, CreditAmount, EffDate, ExpDate, Status, ProcessMessage</code></td></tr>
-                    <tr><td><code>zj_CreditImportLog</code></td><td>临时授信申请日志</td><td><code>CusName, TempCredit, TempType, CtNo, EffDate, ExpDate, Status, ProcessMessage</code></td></tr>
-                </tbody>
-            </table>
-        </div>
-        <p><strong>状态流转</strong>：<span class="badge orange">Pending</span>（待处理） → <span class="badge green">Success</span>（成功） / <span class="badge red">Failed</span>（失败）</p>
-
-        <!-- 8. 提成配置表 -->
-        <h3>3.8 提成配置表（<code>Zj_CommissionScheme</code> + <code>Zj_CommissionLadder</code>）</h3>
-        <p><strong>📌 业务作用</strong>：提成规则的核心配置，<code>Scheme</code> 定义“谁适用什么规则”，<code>Ladder</code> 定义“金额区间对应多少比例”。</p>
-        <div class="table-wrap">
-            <table>
-                <thead><tr><th>表名</th><th>关键字段</th><th>业务含义</th></tr></thead>
-                <tbody>
-                    <tr>
-                        <td><code>Zj_CommissionScheme</code><br/>（方案表）</td>
-                        <td>
-                            <code>Ladder_Id</code>（关联阶梯表）<br/>
-                            <code>SchemeType</code>（SALER/SERVICE）<br/>
-                            <code>CalcType</code>（SINGLE/CUMULATIVE）<br/>
-                            <code>BusinessType</code>（匹配业务大类）<br/>
-                            <code>IsCompanyBusiness</code>（公司/个人业务标识）<br/>
-                            <code>CtrlOffice</code>（适用接单公司列表，逗号分隔）
-                        </td>
-                        <td>
-                            定义提成方案头部。<br/>
-                            <span class="badge">SALER</span> 业务员提成 <span class="badge purple">SERVICE</span> 客服提成<br/>
-                            <span class="badge green">SINGLE</span> 单笔匹配 <span class="badge orange">CUMULATIVE</span> 累计分段
-                        </td>
-                    </tr>
-                    <tr>
-                        <td><code>Zj_CommissionLadder</code><br/>（阶梯表）</td>
-                        <td>
-                            <code>Ladder_Id</code>（关联方案表）<br/>
-                            <code>LadderSeq</code>（阶梯序号）<br/>
-                            <code>MinAmount</code>（区间下限，含）<br/>
-                            <code>MaxAmount</code>（区间上限，不含）<br/>
-                            <code>CommissionRate</code>（提成比例，小数）
-                        </td>
-                        <td>
-                            定义具体金额阶梯与对应比例。<br/>
-                            如：0~10000 提成 3%，10000~50000 提成 5%<br/>
-                            <code>MaxAmount</code> 为 NULL 表示无穷大。
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-
-        <!-- ========== 四、关键业务路径解析 ========== -->
-        <h2>四、关键业务路径解析</h2>
-        <p>以下展示核心业务场景中，数据是如何在这些表之间流转的。</p>
-
-        <h3>4.1 提成计算路径（业务员 / 客服）</h3>
-        <ul class="rule-list">
-            <li><strong>数据起点</strong>：<code>Cost</code>（成本单） 与 <code>CostItem</code>（明细） 聚合出 <strong>毛利金额</strong>（收入-支出）。</li>
-            <li><strong>维度匹配</strong>：通过 <code>Cost.Saler</code>（业务员）或 <code>Cost.Service</code>（客服）以及 <code>BusWay</code>（业务大类），匹配 <code>Zj_CommissionScheme</code> 中对应的方案。</li>
-            <li><strong>比例计算</strong>：根据方案的 <code>CalcType</code>：
-                <ul>
-                    <li><strong>SINGLE（单笔）</strong>：用 <code>ABS(毛利)</code> 在 <code>Zj_CommissionLadder</code> 中匹配唯一区间，取出 <code>CommissionRate</code> 直接乘毛利。</li>
-                    <li><strong>CUMULATIVE（累计）</strong>：将 <code>ABS(毛利)</code> 按阶梯分段，每段分别乘以对应比例后累加。</li>
-                </ul>
-            </li>
-            <li><strong>最终结果</strong>：计算出的提成金额归集到对应人员（业务员/客服）名下。</li>
-        </ul>
-
-        <h3>4.2 授信额度计算路径</h3>
-        <ul class="rule-list">
-            <li><strong>永久授信</strong>：从 <code>CusContract</code> 中取 <code>CtClass <> '虚拟账期合同'</code> 且满足有效期条件的合同，取 <code>MAX(CreditAmount)</code>。</li>
-            <li><strong>临时授信</strong>：从 <code>CusCredit</code> 中取 <code>TempType='C'</code> 且当前在有效期内的记录，取 <code>TempCredit</code>。</li>
-            <li><strong>总授信</strong> = 永久授信 + 临时授信（若无则为 0 或兜底值 10000）。</li>
-        </ul>
-
-        <h3>4.3 客户未收金额与超额监控路径</h3>
-        <ul class="rule-list">
-            <li><strong>未收金额</strong>：从 <code>CostItem</code> 中取 <code>Ioid=1</code>（收入），排除 <code>redid IS NOT NULL</code>（红冲），排除 <code>WhoName</code> 在 <code>Company</code> 表中的内部公司，计算 <code>(Amount - Ysje) * 汇率</code>。</li>
-            <li><strong>汇总</strong>：通过 <code>Cost</code> 表的 <code>Entrust</code> 关联客户，按客户汇总未收金额。</li>
-            <li><strong>授信比较</strong>：将汇总的未收金额与上述“总授信”比较，若未收 > 授信，则标记为“超额”。</li>
-            <li><strong>合同状态过滤</strong>：通过关联 <code>CusContract</code> 判断客户是否有有效正式合同，用于筛选“无合同欠款”客户。</li>
-        </ul>
-
-        <!-- ========== 五、表关联关系速查矩阵 ========== -->
-        <h2>五、表关联关系速查矩阵</h2>
-        <div class="table-wrap">
-            <table>
-                <thead><tr><th>主表</th><th>关联表</th><th>关联字段</th><th>业务场景</th></tr></thead>
-                <tbody>
-                    <tr><td><code>Cost</code></td><td><code>CostItem</code></td><td><code>Cost.Id = CostItem.CostId</code></td><td>计算毛利/未收金额</td></tr>
-                    <tr><td><code>Cost</code></td><td><code>Customer</code></td><td><code>Cost.Entrust = Customer.CusFullName</code></td><td>按客户汇总未收金额</td></tr>
-                    <tr><td><code>Cost</code></td><td><code>Export</code></td><td><code>Cost.Id = Export.Id</code></td><td>获取分单及主单业务大类（代拉代报场景）</td></tr>
-                    <tr><td><code>CusContract</code></td><td><code>Customer</code></td><td><code>CusContract.CusFullName = Customer.CusFullName</code></td><td>获取合同对应客户信息</td></tr>
-                    <tr><td><code>CusContract</code></td><td><code>CusCredit</code></td><td><code>CusContract.Id = CusCredit.CusBcId</code></td><td>获取合同对应的临时授信/账期</td></tr>
-                    <tr><td><code>Zj_CommissionScheme</code></td><td><code>Zj_CommissionLadder</code></td><td><code>Scheme.Ladder_Id = Ladder.Ladder_Id</code></td><td>获取提成方案对应的阶梯配置</td></tr>
-                    <tr><td><code>zj_ContractImportLog</code></td><td><code>CusContract</code></td><td>触发器自动同步</td><td>OA 合同申请同步至业务系统</td></tr>
-                    <tr><td><code>zj_CreditImportLog</code></td><td><code>CusCredit</code></td><td>触发器自动同步</td><td>OA 授信/账期申请同步至业务系统</td></tr>
-                </tbody>
-            </table>
-        </div>
-
-        <!-- ========== 六、字段/表命名规范与版本说明 ========== -->
-        <h2>六、字段/表命名规范与版本说明</h2>
-        <ul class="rule-list">
-            <li><strong>前缀说明</strong>：
-                <ul>
-                    <li><code>f9_</code>：核心业务表（如 <code>f9_Cost</code>, <code>f9_CusContract</code>）</li>
-                    <li><code>Zj_</code>：系统配置/主数据表（如 <code>Zj_CommissionScheme</code>）</li>
-                    <li><code>zj_</code>：日志/中转表（如 <code>zj_ContractImportLog</code>）</li>
-                </ul>
-            </li>
-            <li><strong>字段大小写</strong>：SQL Server 不区分大小写，MySQL 建议统一使用小写，但在代码中通常忽略大小写差异。</li>
-            <li><strong>关键过滤标识</strong>：
-                <ul>
-                    <li><code>CancelId = 'T'</code> 或 <code>Cancelid <> 'T'</code>：业务单据取消标记。</li>
-                    <li><code>redid IS NULL</code>：排除红冲明细。</li>
-                    <li><code>ApproveStatus = '结束'</code>：仅包含已审批通过的有效数据。</li>
-                </ul>
-            </li>
-            <li><strong>日期函数适配</strong>：MySQL 使用 <code>CURDATE()</code>，SQL Server 使用 <code>GETDATE()</code>，业务逻辑等价。</li>
-        </ul>
-
-        <!-- ========== 七、总结 ========== -->
-        <h2>七、总结</h2>
-        <p>
-            以上 8 张表构成了提成计算、授信控制、逾期监控三大业务模块的 <strong>数据核心</strong>。
-            其中，<code>Cost</code> 和 <code>CostItem</code> 是“金额计算”的源头；<code>CusContract</code> 和 <code>CusCredit</code> 是“授信额度”的载体；
-            <code>Zj_CommissionScheme</code> 和 <code>Zj_CommissionLadder</code> 是“提成规则”的配置中心。
-            各表通过客户名称（<code>CusFullName</code> / <code>Entrust</code>）和合同ID（<code>Id</code> / <code>CusBcId</code>）等字段形成完整的数据链路。
-        </p>
-        <p>
-            理解这些表的用途和关联关系，是进行业务数据分析、SQL 优化以及问题排查的基础。建议将此文档作为团队的共享知识库使用。
-        </p>
-
-        <div class="footnote">
-            <strong>说明</strong>：本文档基于系统现有 SQL 逻辑逆向提炼，具体字段名请以实际数据库字典为准。如有新增表或字段变更，请及时更新本文档。
-        </div>
-
     </div>
 
-    <script>
-        mermaid.initialize({
-            theme: 'neutral',
-            fontFamily: '"SF Mono", Menlo, Consolas, monospace',
-            flowchart: {
-                useMaxWidth: true,
-                htmlLabels: true
-            }
-        });
-    </script>
+    <!-- ========== 一、概述 ========== -->
+    <h2>一、概述</h2>
+    <p>
+        本系统涉及业务员提成、客服提成、授信额度管理、客户逾期监控等多个核心模块。这些模块虽然业务场景不同，但都建立在同一套核心数据模型之上。
+        本文档汇总了所有 SQL 逻辑中涉及到的 <strong>8 张核心表</strong>，从业务角度解释每张表的用途、关键字段含义，以及表与表之间的关联关系，帮助开发、运维及业务人员快速建立全局数据视图。
+    </p>
+    <p>
+        <span class="badge">📌 提示</span> 文中表名可能因系统版本不同带有 <code>f9_</code> 或 <code>Zj_</code> 前缀，但核心字段及业务含义是一致的。
+    </p>
+
+    <!-- ========== 二、ER 关系全景图（内容已放大） ========== -->
+    <h2>二、ER 关系全景图</h2>
+    <p>下图展示了核心表之间的关联关系，箭头方向表示数据流向或外键依赖。图表内字体已放大至 20px，便于阅读。</p>
+    <div class="mermaid-container">
+        <div class="mermaid">
+            graph LR
+            subgraph 业务交易层
+            Cost[f9_Cost<br>成本单主表] -->|Id = CostId| Item[f9_Costitem<br>成本明细表]
+            Cost -->|Entrust| Customer[f9_Customer<br>客户基础信息表]
+            Contract[f9_CusContract<br>合同主表] -->|CusFullName| Customer
+            Contract -->|Id = CusBcId| Credit[f9_CusCredit<br>临时授信表]
+            end
+
+            subgraph 授信控制层
+            LogContract[zj_ContractImportLog<br>合同申请日志表] -->|自动同步| Contract
+            LogCredit[zj_CreditImportLog<br>临时授信日志表] -->|自动同步| Credit
+            end
+
+            subgraph 提成配置层
+            Scheme[Zj_CommissionScheme<br>提成方案表] -->|Ladder_Id| Ladder[Zj_CommissionLadder<br>提成阶梯表]
+            end
+
+            Cost -.->|关联业务员/客服| Scheme
+            Customer -.->|关联客户归属| Scheme
+        </div>
+    </div>
+
+    <!-- ========== 三、核心表详细说明 ========== -->
+    <h2>三、核心表详细说明</h2>
+
+    <!-- 1. 客户基础信息表 -->
+    <h3>3.1 客户基础信息表（<code>f9_Customer</code> / <code>customer</code>）</h3>
+    <p><strong>📌 业务作用</strong>：存储所有客户（含外部客户和内部公司）的基础档案信息，是整个系统的核心主数据。</p>
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>字段名</th><th>业务含义</th><th>关联/计算说明</th></tr></thead>
+            <tbody>
+            <tr><td class="col-field">Id</td><td>客户唯一标识（内部ID）</td><td>主键，用于系统内部关联</td></tr>
+            <tr><td class="col-field">CusName / cusname</td><td>客户简称</td><td>常用于界面显示</td></tr>
+            <tr><td class="col-field">CusFullName / cusfullnamechs</td><td>客户全称</td><td><strong>关键关联字段</strong>：与合同表（CusFullName）、成本表（Entrust）进行匹配</td></tr>
+            <tr><td class="col-field">CusCd / cuscd</td><td>客户编码</td><td>业务系统唯一编码</td></tr>
+            <tr><td class="col-field">Owner</td><td>负责业务员</td><td>用于超额监控报表中显示业务员信息</td></tr>
+            <tr><td class="col-field">AccDays</td><td>默认账期天数</td><td>当合同未指定账期时，作为兜底值</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 2. 公司信息表 -->
+    <h3>3.2 公司信息表（<code>f9_Company</code> / <code>Company</code>）</h3>
+    <p><strong>📌 业务作用</strong>：存储集团内部各分子公司信息，主要用于 <strong>过滤内部公司数据</strong>，避免将内部往来计入客户信用风险监控。</p>
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>字段名</th><th>业务含义</th><th>关联/计算说明</th></tr></thead>
+            <tbody>
+            <tr><td class="col-field">CusName / shortname</td><td>公司名称</td><td>用于 <code>NOT IN</code> 子查询，排除内部公司</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 3. 成本单主表 -->
+    <h3>3.3 成本单主表（<code>f9_Cost</code> / <code>Cost</code>）</h3>
+    <p><strong>📌 业务作用</strong>：记录每笔业务（订单/委托）的成本头信息，是提成计算和未收金额统计的起点。</p>
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>字段名</th><th>业务含义</th><th>关联/计算说明</th></tr></thead>
+            <tbody>
+            <tr><td class="col-field">Id</td><td>成本单ID</td><td>主键，与明细表（CostItem）关联</td></tr>
+            <tr><td class="col-field">Entrust</td><td>委托客户名称</td><td><strong>关键关联字段</strong>：与客户表全称匹配，用于汇总客户未收金额</td></tr>
+            <tr><td class="col-field">Saler</td><td>业务员</td><td>用于销售提成归属（SchemeType='SALER'）及业务判断</td></tr>
+            <tr><td class="col-field">Service / service</td><td>客服人员</td><td>用于客服提成归属（SchemeType='SERVICE'）</td></tr>
+            <tr><td class="col-field">BizDate</td><td>业务日期</td><td>用于月度/季度提成周期聚合</td></tr>
+            <tr><td class="col-field">BusWay</td><td>业务大类</td><td>如“跨境电商”、“代拉代报”，匹配提成方案中的 BusinessType</td></tr>
+            <tr><td class="col-field">Cancelid</td><td>取消标识</td><td>='T' 表示已取消，计算时需过滤</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 4. 成本明细表 -->
+    <h3>3.4 成本明细表（<code>f9_Costitem</code> / <code>CostItem</code>）</h3>
+    <p><strong>📌 业务作用</strong>：记录成本单下的每一笔收支明细。所有 <strong>未收金额</strong> 和 <strong>毛利</strong> 的计算均基于此表。</p>
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>字段名</th><th>业务含义</th><th>关联/计算说明</th></tr></thead>
+            <tbody>
+            <tr><td class="col-field">CostId</td><td>关联成本单ID</td><td>外键，关联 Cost.Id</td></tr>
+            <tr><td class="col-field">Ioid</td><td>收支标识</td><td>1 = 收入，-1 = 支出</td></tr>
+            <tr><td class="col-field">Amount</td><td>原始金额</td><td>可能为外币</td></tr>
+            <tr><td class="col-field">Ysje</td><td>已收金额（本位币）</td><td>用于计算未收金额：<code>未收 = Amount - Ysje</code></td></tr>
+            <tr><td class="col-field">ChgSign</td><td>汇率符号</td><td>'*' 表示乘，'/' 表示除</td></tr>
+            <tr><td class="col-field">ChgRate</td><td>汇率</td><td>用于将外币金额折算为本位币</td></tr>
+            <tr><td class="col-field">redid</td><td>红冲标识</td><td>非 NULL 表示红冲记录，计算时需过滤（<code>IS NULL</code>）</td></tr>
+            <tr><td class="col-field">WhoName</td><td>对方单位</td><td>用于排除内部公司（与 Company 表比对）</td></tr>
+            </tbody>
+        </table>
+    </div>
+    <div class="highlight-box">
+        <strong>🔑 核心计算逻辑（未收金额）</strong>：
+        <code>单笔未收本位币 = ROUND( (Amount - ISNULL(Ysje,0)) * 汇率 , 2 )</code><br />
+        其中汇率根据 <code>ChgSign</code> 决定：'*' 则乘 <code>ChgRate</code>，'/' 则除 <code>ChgRate</code>，否则为 1。
+    </div>
+
+    <!-- 5. 合同主表 -->
+    <h3>3.5 合同主表（<code>f9_CusContract</code> / <code>CusContract</code>）</h3>
+    <p><strong>📌 业务作用</strong>：存储所有合同信息，包括 <strong>正式业务合同</strong>（决定永久授信额度）和 <strong>虚拟账期合同</strong>（承载临时授信与账期）。</p>
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>字段名</th><th>业务含义</th><th>关联/计算说明</th></tr></thead>
+            <tbody>
+            <tr><td class="col-field">Id</td><td>合同ID</td><td>主键，被 CusCredit 表引用（CusBcId）</td></tr>
+            <tr><td class="col-field">CusFullName</td><td>客户全称</td><td>关联客户表</td></tr>
+            <tr><td class="col-field">CtClass</td><td>合同类型</td><td><code>'虚拟账期合同'</code> 为虚拟合同，其他为正式合同</td></tr>
+            <tr><td class="col-field">CreditAmount</td><td>信用额度</td><td>正式合同中为永久授信；虚拟合同中为基础额度</td></tr>
+            <tr><td class="col-field">AccDays</td><td>账期天数</td><td>记录合同约定的账期</td></tr>
+            <tr><td class="col-field">EffDate</td><td>生效日期</td><td>合同开始日期</td></tr>
+            <tr><td class="col-field">ExpDate</td><td>失效日期</td><td>合同结束日期（需结合 AutoNewId 判断顺延）</td></tr>
+            <tr><td class="col-field">CancelId</td><td>取消标识</td><td>='T' 表示已取消</td></tr>
+            <tr><td class="col-field">ApproveStatus</td><td>审批状态</td><td>='结束' 表示已审批通过</td></tr>
+            <tr><td class="col-field">AutoNewId</td><td>自动顺延标识</td><td>='T' 表示合同到期自动顺延</td></tr>
+            <tr><td class="col-field">DeferredYears</td><td>顺延年限</td><td>自动顺延的年数</td></tr>
+            </tbody>
+        </table>
+    </div>
+    <div class="highlight-box">
+        <strong>🔑 核心业务规则（永久授信）</strong>：<br />
+        客户的 <strong>永久授信额度</strong> = 该客户所有 <strong>有效正式合同</strong>（非虚拟、未取消、审批结束、在有效期内）中 <code>CreditAmount</code> 的 <strong>最大值</strong>（非总和）。<br />
+        OA 调整永久额度的本质是修改某个具体正式合同的 <code>CreditAmount</code>。
+    </div>
+
+    <!-- 6. 临时授信表 -->
+    <h3>3.6 临时授信表（<code>f9_CusCredit</code> / <code>CusCredit</code>）</h3>
+    <p><strong>📌 业务作用</strong>：存储客户的 <strong>临时额度</strong> 和 <strong>临时账期</strong> 调整记录。每个类型（TempType）同一时间只会有一条有效记录。</p>
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>字段名</th><th>业务含义</th><th>关联/计算说明</th></tr></thead>
+            <tbody>
+            <tr><td class="col-field">Id</td><td>记录ID</td><td>主键</td></tr>
+            <tr><td class="col-field">CusBcId</td><td>关联合同ID</td><td>外键，关联 <code>CusContract.Id</code>（通常关联虚拟合同）</td></tr>
+            <tr><td class="col-field">TempType</td><td>临时类型</td><td>'C' = 授信额度调整；'A' = 临时账期调整</td></tr>
+            <tr><td class="col-field">TempCredit</td><td>临时额度/账期值</td><td>当 TempType='C' 时为额度金额；TempType='A' 时为账期天数</td></tr>
+            <tr><td class="col-field">EffDate</td><td>生效日期</td><td>临时调整的生效日</td></tr>
+            <tr><td class="col-field">ExpDate</td><td>失效日期</td><td>临时调整的失效日</td></tr>
+            <tr><td class="col-field">ApproveStatus</td><td>审批状态</td><td>='结束' 表示已审批</td></tr>
+            </tbody>
+        </table>
+    </div>
+    <div class="highlight-box">
+        <strong>🔑 核心业务规则（临时额度/账期）</strong>：<br />
+        系统保证 <strong>同一 <code>CusBcId</code> + 同一 <code>TempType</code></strong> 在有效期内 <strong>只有一条记录</strong>（通过应用层或触发器控制）。<br />
+        查询时直接取 <code>GETDATE() BETWEEN EffDate AND ExpDate</code> 的记录即可。
+    </div>
+
+    <!-- 7. 日志中转表 -->
+    <h3>3.7 日志中转表（<code>zj_ContractImportLog</code> / <code>zj_CreditImportLog</code>）</h3>
+    <p><strong>📌 业务作用</strong>：作为 OA 系统与 F9 业务系统的 <strong>数据中转站</strong>。OA 审批通过后将数据写入日志表，由触发器自动同步到核心业务表（CusContract / CusCredit）。</p>
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>表名</th><th>用途</th><th>关键字段</th></tr></thead>
+            <tbody>
+            <tr><td><code>zj_ContractImportLog</code></td><td>合同申请日志</td><td><code>CtNo, CtClass, CusName, CreditAmount, EffDate, ExpDate, Status, ProcessMessage</code></td></tr>
+            <tr><td><code>zj_CreditImportLog</code></td><td>临时授信申请日志</td><td><code>CusName, TempCredit, TempType, CtNo, EffDate, ExpDate, Status, ProcessMessage</code></td></tr>
+            </tbody>
+        </table>
+    </div>
+    <p><strong>状态流转</strong>：<span class="badge orange">Pending</span>（待处理） → <span class="badge green">Success</span>（成功） / <span class="badge red">Failed</span>（失败）</p>
+
+    <!-- 8. 提成配置表 -->
+    <h3>3.8 提成配置表（<code>Zj_CommissionScheme</code> + <code>Zj_CommissionLadder</code>）</h3>
+    <p><strong>📌 业务作用</strong>：提成规则的核心配置，<code>Scheme</code> 定义“谁适用什么规则”，<code>Ladder</code> 定义“金额区间对应多少比例”。</p>
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>表名</th><th>关键字段</th><th>业务含义</th></tr></thead>
+            <tbody>
+            <tr>
+                <td><code>Zj_CommissionScheme</code><br/>（方案表）</td>
+                <td>
+                    <code>Ladder_Id</code>（关联阶梯表）<br/>
+                    <code>SchemeType</code>（SALER/SERVICE）<br/>
+                    <code>CalcType</code>（SINGLE/CUMULATIVE）<br/>
+                    <code>BusinessType</code>（匹配业务大类）<br/>
+                    <code>IsCompanyBusiness</code>（公司/个人业务标识）<br/>
+                    <code>CtrlOffice</code>（适用接单公司列表，逗号分隔）
+                </td>
+                <td>
+                    定义提成方案头部。<br/>
+                    <span class="badge">SALER</span> 业务员提成 <span class="badge purple">SERVICE</span> 客服提成<br/>
+                    <span class="badge green">SINGLE</span> 单笔匹配 <span class="badge orange">CUMULATIVE</span> 累计分段
+                </td>
+            </tr>
+            <tr>
+                <td><code>Zj_CommissionLadder</code><br/>（阶梯表）</td>
+                <td>
+                    <code>Ladder_Id</code>（关联方案表）<br/>
+                    <code>LadderSeq</code>（阶梯序号）<br/>
+                    <code>MinAmount</code>（区间下限，含）<br/>
+                    <code>MaxAmount</code>（区间上限，不含）<br/>
+                    <code>CommissionRate</code>（提成比例，小数）
+                </td>
+                <td>
+                    定义具体金额阶梯与对应比例。<br/>
+                    如：0~10000 提成 3%，10000~50000 提成 5%<br/>
+                    <code>MaxAmount</code> 为 NULL 表示无穷大。
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- ========== 四、关键业务路径解析 ========== -->
+    <h2>四、关键业务路径解析</h2>
+    <p>以下展示核心业务场景中，数据是如何在这些表之间流转的。</p>
+
+    <h3>4.1 提成计算路径（业务员 / 客服）</h3>
+    <ul class="rule-list">
+        <li><strong>数据起点</strong>：<code>Cost</code>（成本单） 与 <code>CostItem</code>（明细） 聚合出 <strong>毛利金额</strong>（收入-支出）。</li>
+        <li><strong>维度匹配</strong>：通过 <code>Cost.Saler</code>（业务员）或 <code>Cost.Service</code>（客服）以及 <code>BusWay</code>（业务大类），匹配 <code>Zj_CommissionScheme</code> 中对应的方案。</li>
+        <li><strong>比例计算</strong>：根据方案的 <code>CalcType</code>：
+            <ul>
+                <li><strong>SINGLE（单笔）</strong>：用 <code>ABS(毛利)</code> 在 <code>Zj_CommissionLadder</code> 中匹配唯一区间，取出 <code>CommissionRate</code> 直接乘毛利。</li>
+                <li><strong>CUMULATIVE（累计）</strong>：将 <code>ABS(毛利)</code> 按阶梯分段，每段分别乘以对应比例后累加。</li>
+            </ul>
+        </li>
+        <li><strong>最终结果</strong>：计算出的提成金额归集到对应人员（业务员/客服）名下。</li>
+    </ul>
+
+    <h3>4.2 授信额度计算路径</h3>
+    <ul class="rule-list">
+        <li><strong>永久授信</strong>：从 <code>CusContract</code> 中取 <code>CtClass <> '虚拟账期合同'</code> 且满足有效期条件的合同，取 <code>MAX(CreditAmount)</code>。</li>
+        <li><strong>临时授信</strong>：从 <code>CusCredit</code> 中取 <code>TempType='C'</code> 且当前在有效期内的记录，取 <code>TempCredit</code>。</li>
+        <li><strong>总授信</strong> = 永久授信 + 临时授信（若无则为 0 或兜底值 10000）。</li>
+    </ul>
+
+    <h3>4.3 客户未收金额与超额监控路径</h3>
+    <ul class="rule-list">
+        <li><strong>未收金额</strong>：从 <code>CostItem</code> 中取 <code>Ioid=1</code>（收入），排除 <code>redid IS NOT NULL</code>（红冲），排除 <code>WhoName</code> 在 <code>Company</code> 表中的内部公司，计算 <code>(Amount - Ysje) * 汇率</code>。</li>
+        <li><strong>汇总</strong>：通过 <code>Cost</code> 表的 <code>Entrust</code> 关联客户，按客户汇总未收金额。</li>
+        <li><strong>授信比较</strong>：将汇总的未收金额与上述“总授信”比较，若未收 > 授信，则标记为“超额”。</li>
+        <li><strong>合同状态过滤</strong>：通过关联 <code>CusContract</code> 判断客户是否有有效正式合同，用于筛选“无合同欠款”客户。</li>
+    </ul>
+
+    <!-- ========== 五、表关联关系速查矩阵 ========== -->
+    <h2>五、表关联关系速查矩阵</h2>
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>主表</th><th>关联表</th><th>关联字段</th><th>业务场景</th></tr></thead>
+            <tbody>
+            <tr><td><code>Cost</code></td><td><code>CostItem</code></td><td><code>Cost.Id = CostItem.CostId</code></td><td>计算毛利/未收金额</td></tr>
+            <tr><td><code>Cost</code></td><td><code>Customer</code></td><td><code>Cost.Entrust = Customer.CusFullName</code></td><td>按客户汇总未收金额</td></tr>
+            <tr><td><code>Cost</code></td><td><code>Export</code></td><td><code>Cost.Id = Export.Id</code></td><td>获取分单及主单业务大类（代拉代报场景）</td></tr>
+            <tr><td><code>CusContract</code></td><td><code>Customer</code></td><td><code>CusContract.CusFullName = Customer.CusFullName</code></td><td>获取合同对应客户信息</td></tr>
+            <tr><td><code>CusContract</code></td><td><code>CusCredit</code></td><td><code>CusContract.Id = CusCredit.CusBcId</code></td><td>获取合同对应的临时授信/账期</td></tr>
+            <tr><td><code>Zj_CommissionScheme</code></td><td><code>Zj_CommissionLadder</code></td><td><code>Scheme.Ladder_Id = Ladder.Ladder_Id</code></td><td>获取提成方案对应的阶梯配置</td></tr>
+            <tr><td><code>zj_ContractImportLog</code></td><td><code>CusContract</code></td><td>触发器自动同步</td><td>OA 合同申请同步至业务系统</td></tr>
+            <tr><td><code>zj_CreditImportLog</code></td><td><code>CusCredit</code></td><td>触发器自动同步</td><td>OA 授信/账期申请同步至业务系统</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- ========== 六、字段/表命名规范与版本说明 ========== -->
+    <h2>六、字段/表命名规范与版本说明</h2>
+    <ul class="rule-list">
+        <li><strong>前缀说明</strong>：
+            <ul>
+                <li><code>f9_</code>：核心业务表（如 <code>f9_Cost</code>, <code>f9_CusContract</code>）</li>
+                <li><code>Zj_</code>：系统配置/主数据表（如 <code>Zj_CommissionScheme</code>）</li>
+                <li><code>zj_</code>：日志/中转表（如 <code>zj_ContractImportLog</code>）</li>
+            </ul>
+        </li>
+        <li><strong>字段大小写</strong>：SQL Server 不区分大小写，MySQL 建议统一使用小写，但在代码中通常忽略大小写差异。</li>
+        <li><strong>关键过滤标识</strong>：
+            <ul>
+                <li><code>CancelId = 'T'</code> 或 <code>Cancelid <> 'T'</code>：业务单据取消标记。</li>
+                <li><code>redid IS NULL</code>：排除红冲明细。</li>
+                <li><code>ApproveStatus = '结束'</code>：仅包含已审批通过的有效数据。</li>
+            </ul>
+        </li>
+        <li><strong>日期函数适配</strong>：MySQL 使用 <code>CURDATE()</code>，SQL Server 使用 <code>GETDATE()</code>，业务逻辑等价。</li>
+    </ul>
+
+    <!-- ========== 七、总结 ========== -->
+    <h2>七、总结</h2>
+    <p>
+        以上 8 张表构成了提成计算、授信控制、逾期监控三大业务模块的 <strong>数据核心</strong>。
+        其中，<code>Cost</code> 和 <code>CostItem</code> 是“金额计算”的源头；<code>CusContract</code> 和 <code>CusCredit</code> 是“授信额度”的载体；
+        <code>Zj_CommissionScheme</code> 和 <code>Zj_CommissionLadder</code> 是“提成规则”的配置中心。
+        各表通过客户名称（<code>CusFullName</code> / <code>Entrust</code>）和合同ID（<code>Id</code> / <code>CusBcId</code>）等字段形成完整的数据链路。
+    </p>
+    <p>
+        理解这些表的用途和关联关系，是进行业务数据分析、SQL 优化以及问题排查的基础。建议将此文档作为团队的共享知识库使用。
+    </p>
+
+    <div class="footnote">
+        <strong>说明</strong>：本文档基于系统现有 SQL 逻辑逆向提炼，具体字段名请以实际数据库字典为准。如有新增表或字段变更，请及时更新本文档。
+    </div>
+
+</div>
+
+<script>
+    // 关键配置：将图表内字体放大至 20px，并增加节点间距，确保内容清晰
+    mermaid.initialize({
+        theme: 'neutral',
+        fontFamily: '"SF Mono", Menlo, Consolas, monospace',
+        fontSize: 20, // 核心参数：字体放大，节点自然变大
+        flowchart: {
+            useMaxWidth: true,
+            htmlLabels: true,
+            padding: 25, // 节点内边距增加
+            rankSpacing: 80, // 纵向层级间距增加，防止拥挤
+            nodeSpacing: 60 // 横向节点间距增加
+        }
+    });
+</script>
 </body>
 </html>
