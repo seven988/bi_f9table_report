@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>超期应收监控 SQL 逻辑文档（详细版）</title>
+    <!-- 引入 Mermaid.js -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: #f5f7fc;
+            color: #1e293b;
+            padding: 40px 20px;
+            line-height: 1.7;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.06);
+            padding: 50px 55px;
+        }
+
+        .doc-header {
+            border-bottom: 3px solid #eef2f7;
+            padding-bottom: 25px;
+            margin-bottom: 35px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            flex-wrap: wrap;
+        }
+
+        .doc-header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            color: #0f172a;
+            letter-spacing: -0.3px;
+        }
+
+        .doc-header .subtitle {
+            font-size: 16px;
+            color: #64748b;
+            margin-top: 4px;
+            font-weight: 400;
+        }
+
+        .doc-header .meta {
+            text-align: right;
+            color: #94a3b8;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .doc-header .meta strong {
+            color: #475569;
+        }
+
+        h2 {
+            font-size: 22px;
+            font-weight: 600;
+            color: #0f172a;
+            margin-top: 40px;
+            margin-bottom: 18px;
+            padding-left: 14px;
+            border-left: 5px solid #eab308;
+        }
+
+        h3 {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1e293b;
+            margin-top: 28px;
+            margin-bottom: 12px;
+        }
+
+        h4 {
+            font-size: 15px;
+            font-weight: 600;
+            color: #334155;
+            margin-top: 18px;
+            margin-bottom: 6px;
+        }
+
+        p {
+            margin-bottom: 12px;
+            color: #334155;
+        }
+
+        .badge {
+            display: inline-block;
+            background: #fef3c7;
+            color: #b45309;
+            font-size: 12px;
+            font-weight: 600;
+            padding: 0 10px;
+            border-radius: 30px;
+            line-height: 24px;
+            margin-right: 4px;
+        }
+
+        .badge.green {
+            background: #dcfce7;
+            color: #15803d;
+        }
+
+        .badge.red {
+            background: #fee2e2;
+            color: #b91c1c;
+        }
+
+        .badge.purple {
+            background: #ede9fe;
+            color: #7c3aed;
+        }
+
+        .badge.blue {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+
+        .table-wrap {
+            overflow-x: auto;
+            margin: 18px 0 10px;
+            border-radius: 14px;
+            border: 1px solid #e9edf4;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        table thead {
+            background: #f1f5f9;
+        }
+
+        table th {
+            text-align: left;
+            padding: 12px 16px;
+            font-weight: 600;
+            color: #1e293b;
+            font-size: 13px;
+            border-bottom: 2px solid #dce1ea;
+        }
+
+        table td {
+            padding: 11px 16px;
+            border-bottom: 1px solid #eef2f7;
+            vertical-align: top;
+            color: #1e293b;
+        }
+
+        table tbody tr:hover {
+            background: #fafcff;
+        }
+
+        table .col-field {
+            font-family: "SF Mono", Menlo, Consolas, monospace;
+            font-size: 13px;
+            color: #0f172a;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        .calc-box {
+            background: #f1f5f9;
+            border-radius: 12px;
+            padding: 18px 22px;
+            margin: 16px 0;
+            border-left: 5px solid #eab308;
+        }
+
+        .calc-box strong {
+            color: #0f172a;
+        }
+
+        .calc-box .formula {
+            font-family: "SF Mono", Menlo, Consolas, monospace;
+            background: #e2e8f0;
+            padding: 4px 12px;
+            border-radius: 6px;
+            display: inline-block;
+            margin: 4px 0;
+        }
+
+        .code-block {
+            background: #0f172a;
+            color: #e2e8f0;
+            border-radius: 14px;
+            padding: 20px 24px;
+            overflow-x: auto;
+            font-family: "SF Mono", Menlo, Consolas, monospace;
+            font-size: 13px;
+            line-height: 1.8;
+            margin: 16px 0 10px;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .code-block .comment {
+            color: #94a3b8;
+        }
+
+        .code-block .keyword {
+            color: #f472b6;
+        }
+
+        .code-block .func {
+            color: #60a5fa;
+        }
+
+        .code-block .string {
+            color: #34d399;
+        }
+
+        .flow {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: 6px 10px;
+            margin: 20px 0 14px;
+            padding: 18px 20px;
+            background: #f8fafc;
+            border-radius: 16px;
+            border: 1px solid #e9edf4;
+        }
+
+        .flow-item {
+            background: #ffffff;
+            border-radius: 30px;
+            padding: 8px 20px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #0f172a;
+            border: 1px solid #dce1ea;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+            white-space: nowrap;
+        }
+
+        .flow-item.highlight {
+            background: #eab308;
+            color: #fff;
+            border-color: #eab308;
+        }
+
+        .flow-arrow {
+            color: #94a3b8;
+            font-size: 20px;
+            font-weight: 300;
+        }
+
+        .detail-box {
+            background: #fafcff;
+            border-left: 4px solid #eab308;
+            padding: 16px 20px;
+            margin: 12px 0 16px;
+            border-radius: 8px;
+        }
+
+        .detail-box strong {
+            color: #0f172a;
+        }
+
+        .detail-box ul {
+            margin-left: 20px;
+            margin-top: 4px;
+        }
+
+        .detail-box ul li {
+            margin-bottom: 4px;
+        }
+
+        .mermaid-container {
+            background: #fafcff;
+            border: 1px solid #e9edf4;
+            border-radius: 14px;
+            padding: 20px;
+            margin: 16px 0;
+            display: flex;
+            justify-content: center;
+        }
+
+        .highlight-row {
+            background: #fefce8 !important;
+            border-left: 3px solid #eab308;
+        }
+
+        .footnote {
+            font-size: 13px;
+            color: #94a3b8;
+            margin-top: 20px;
+            border-top: 1px solid #eef2f7;
+            padding-top: 14px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 25px 18px;
+            }
+            .doc-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .doc-header .meta {
+                text-align: left;
+                margin-top: 10px;
+            }
+            .flow {
+                flex-direction: column;
+                gap: 8px;
+            }
+            .flow-arrow {
+                transform: rotate(90deg);
+            }
+            table td, table th {
+                padding: 8px 10px;
+                font-size: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+
+        <!-- ========== 文档头部 ========== -->
+        <div class="doc-header">
+            <div>
+                <h1>📊 超期应收监控 &mdash; SQL 逻辑文档（详细版）</h1>
+                <div class="subtitle">基于月结账期与自然日顺延的客户超期未收分析</div>
+            </div>
+            <div class="meta">
+                <strong>版本</strong> V1.1<br />
+                <strong>更新</strong> 2026-07-02<br />
+                <strong>数据库</strong> Doris（兼容 MySQL 语法）
+            </div>
+        </div>
+
+        <!-- ========== 一、概述 ========== -->
+        <h2>一、概述</h2>
+        <p>
+            本 SQL 用于监控客户的 <strong>超期未收金额</strong>，核心目标是：<strong>识别哪些客户的应收账款已经超过了约定的付款期限（账期），并按逾期天数分段统计金额，帮助业务人员快速定位高危逾期客户</strong>。
+        </p>
+        <p>
+            与普通“自然日顺延”账期不同，本 SQL 支持 <strong>月结</strong> 场景下的复杂到期日计算：即根据结算方式（月结、两月结、三月结等），确定“目标结算月份”，再结合账期天数（AccDays）计算出最终的到期日。整个计算过程分为 <strong>3 层嵌套</strong>，层层递进，最终输出按客户汇总的超期未收金额及逾期天数分布。
+        </p>
+
+        <!-- ========== 二、整体逻辑流程 ========== -->
+        <h2>二、整体逻辑流程</h2>
+        <div class="flow">
+            <span class="flow-item">📄 内层子查询</span>
+            <span class="flow-arrow">→</span>
+            <span class="flow-item">🔗 OverdueBase CTE</span>
+            <span class="flow-arrow">→</span>
+            <span class="flow-item">📊 最终 SELECT</span>
+        </div>
+
+        <div class="step-grid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(250px,1fr)); gap:16px; margin:16px 0;">
+            <div style="background:#f8fafc; border-radius:12px; padding:16px; border:1px solid #e9edf4;">
+                <div style="font-weight:700; color:#0f172a;">① 内层子查询</div>
+                <div style="font-size:14px; color:#475569;">关联成本、明细、虚拟合同，计算每笔收入的未收金额、目标结算月、账期天数</div>
+            </div>
+            <div style="background:#f8fafc; border-radius:12px; padding:16px; border:1px solid #e9edf4;">
+                <div style="font-weight:700; color:#0f172a;">② OverdueBase CTE</div>
+                <div style="font-size:14px; color:#475569;">根据月结规则计算到期日、逾期天数，并过滤超期且非内部公司的记录</div>
+            </div>
+            <div style="background:#f8fafc; border-radius:12px; padding:16px; border:1px solid #e9edf4;">
+                <div style="font-weight:700; color:#0f172a;">③ 最终 SELECT</div>
+                <div style="font-size:14px; color:#475569;">按委托人+业务员汇总超期未收总额，并按逾期天数区间（1-30, 31-60, 61-90, 90+）分段统计</div>
+            </div>
+        </div>
+
+        <!-- ========== 三、详细逻辑说明 ========== -->
+        <h2>三、详细逻辑说明</h2>
+
+        <!-- ===== 步骤 1：内层子查询 ===== -->
+        <h3>步骤 1：内层子查询（成本 &amp; 明细 &amp; 虚拟合同关联）</h3>
+        <div class="detail-box">
+            <p><strong>🎯 业务目标</strong><br />
+            从成本单和成本明细中计算每笔收入的 <strong>应收</strong>、<strong>已收</strong>、<strong>未收</strong>，并关联虚拟账期合同获取 <strong>账期天数（AccDays）</strong> 和 <strong>结算方式</strong>（决定延后月数），同时计算出 <strong>目标结算月份</strong>（用于月结场景的到期日计算）。
+            </p>
+            <p><strong>📥 数据来源</strong></p>
+            <ul>
+                <li><code>f9_Cost</code>：成本单主表，提供客户、业务日期、业务员、客服等。</li>
+                <li><code>f9_Costitem</code>：成本明细表（仅取收入 <code>Ioid=1</code>），计算应收、已收。</li>
+                <li><code>f9_CusContract</code>：虚拟账期合同，提供 <code>AccDays</code>、<code>PayWayCd</code>（结算方式代码）。</li>
+                <li><code>f9_CusCredit</code>：临时账期调整表（<code>TempType='A'</code>），若有有效记录则覆盖合同默认账期。</li>
+            </ul>
+            <p><strong>⚙️ 核心计算</strong></p>
+            <ul>
+                <li><strong>应收 / 已收</strong>：按照 <code>ChgSign</code>（* 或 /）和 <code>ChgRate</code> 将金额折算为本位币，保留两位小数。</li>
+                <li><strong>目标月份（TargetMonthFirstDay）</strong>：<br />
+                    先取业务日期的当月第一天（<code>MonthFirstDay</code>），然后根据结算方式对应的 <strong>延后月数</strong> 向后推移。<br />
+                    例如：业务日期 2026-01-15，结算方式为“月结”（延后 1 个月），则目标月份为 2026-02-01。
+                </li>
+                <li><strong>账期天数</strong>：优先取临时账期（<code>TempAccDay</code>），若为空则取合同 <code>AccDays</code>，若合同 <code>AccDays</code> &lt; 1 则默认 25 天。</li>
+            </ul>
+            <p><strong>📤 输出字段（供上一层使用）</strong></p>
+            <ul>
+                <li><code>Entrust</code>、<code>BusWay</code>、<code>JobNoIn</code>、<code>PayWay</code>、<code>CtrlOffice</code>、<code>Saler</code>、<code>Service</code></li>
+                <li><code>BizMonth</code>（业务月份）</li>
+                <li><code>CostName</code>、<code>WhoName</code></li>
+                <li><code>UncollectedAmount</code>（未收金额 = 应收 - 已收）</li>
+                <li><code>TargetMonthFirstDay</code>（目标结算月的第一天）</li>
+                <li><code>AccDays</code>（账期天数）</li>
+            </ul>
+            <p><strong>⚠️ 重要过滤</strong>：只保留 <code>未收金额 > 0</code> 的记录。</p>
+        </div>
+
+        <!-- ===== 步骤 2：OverdueBase CTE ===== -->
+        <h3>步骤 2：OverdueBase CTE（计算到期日与逾期天数）</h3>
+        <div class="detail-box">
+            <p><strong>🎯 业务目标</strong><br />
+            基于目标结算月份和账期天数，计算每笔收入的 <strong>到期日</strong>，并与当前日期比较，得到 <strong>逾期天数</strong>，同时过滤出已超期的记录。
+            </p>
+            <p><strong>⚙️ 核心计算逻辑（重点）</strong></p>
+            <ul>
+                <li><strong>到期日</strong> 的计算规则：
+                    <ul>
+                        <li>若 <code>AccDays</code> ≤ 目标月份的总天数，则到期日 = <strong>目标月份第一天 + (AccDays - 1) 天</strong>（即当月第 AccDays 天）。</li>
+                        <li>若 <code>AccDays</code> > 目标月份总天数，则到期日 = <strong>目标月份的最后一天</strong>（即月末）。</li>
+                    </ul>
+                    这实际上模拟了 “月结 + 账期天数” 的逻辑：账期天数表示“从月初算起的第 N 天”，如果超过月末则直接取月末。
+                </li>
+                <li><strong>逾期天数</strong> = <code>当前日期 - 到期日</code>（若 > 0 则表示已超期）。</li>
+                <li><strong>过滤</strong>：只保留 <code>逾期天数 > 0</code> 的记录，且排除内部公司（<code>WhoName NOT IN f9_Company</code>）。</li>
+            </ul>
+            <p><strong>📤 输出字段</strong></p>
+            <ul>
+                <li>上述所有维度字段 + <code>UncollectedAmount</code>、<code>OverdueDays</code></li>
+            </ul>
+        </div>
+
+        <!-- ===== 步骤 3：最终 SELECT ===== -->
+        <h3>步骤 3：最终 SELECT（汇总与分段）</h3>
+        <div class="detail-box">
+            <p><strong>🎯 业务目标</strong><br />
+            按 <code>委托人（Entrust）</code> 和 <code>业务员（Saler）</code> 分组，汇总超期未收总额，并按逾期天数区间（1-30、31-60、61-90、90+）分别统计金额，同时输出最大超期天数。
+            </p>
+            <p><strong>📤 最终输出字段</strong></p>
+            <ul>
+                <li><code>委托人</code></li>
+                <li><code>业务员</code></li>
+                <li><code>超期未收总额</code></li>
+                <li><code>1-30天(轻度)</code></li>
+                <li><code>31-60天(中度)</code></li>
+                <li><code>61-90天(重度)</code></li>
+                <li><code>90天以上(高危)</code></li>
+                <li><code>最大超期天数</code></li>
+            </ul>
+            <p><strong>💡 业务价值</strong>：快速了解每个客户超期金额的分布，聚焦于逾期最严重的客户。</p>
+        </div>
+
+        <!-- ========== 四、超期日期计算示例 ========== -->
+        <h2>四、超期日期计算示例（重点）</h2>
+        <p>为了帮助理解月结场景下的到期日计算，我们以 <strong>“好客贸易有限公司”</strong> 的一笔收入为例，逐步演算整个过程。</p>
+
+        <h3>4.1 基础数据</h3>
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>字段</th><th>值</th></tr></thead>
+                <tbody>
+                    <tr><td>业务日期（BizDate）</td><td>2026-01-15</td></tr>
+                    <tr><td>结算方式代码（PayWayCd）</td><td>M（月结，延后 1 个月）</td></tr>
+                    <tr><td>虚拟合同账期（AccDays）</td><td>25 天</td></tr>
+                    <tr><td>当前日期（current_date）</td><td>2026-07-02</td></tr>
+                    <tr><td>未收金额</td><td>50,000 元</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <h3>4.2 计算步骤</h3>
+        <div class="calc-box">
+            <p><strong>① 计算目标结算月份第一天（TargetMonthFirstDay）</strong></p>
+            <ul>
+                <li>业务日期的当月第一天：<code>2026-01-01</code></li>
+                <li>结算方式为“月结”，延后月数 = 1</li>
+                <li>目标月份 = <code>2026-01-01 + 1 month = 2026-02-01</code></li>
+            </ul>
+            <p><strong>② 计算目标月份的总天数</strong></p>
+            <ul>
+                <li>2026年2月共有 <strong>28 天</strong>（非闰年）</li>
+            </ul>
+            <p><strong>③ 判断 AccDays 是否 ≤ 总天数</strong></p>
+            <ul>
+                <li>AccDays = 25，≤ 28，因此到期日 = 目标月份第一天 + (25 - 1) 天 = <code>2026-02-01 + 24天 = 2026-02-25</code></li>
+            </ul>
+            <p><strong>④ 计算逾期天数</strong></p>
+            <ul>
+                <li>当前日期 2026-07-02 减去 到期日 2026-02-25 = <strong>127 天</strong>（已超期）</li>
+            </ul>
+            <p><strong>⑤ 分段归属</strong></p>
+            <ul>
+                <li>127 天 &gt; 90 天，因此该笔未收金额计入 <strong>“90天以上(高危)”</strong> 区间。</li>
+            </ul>
+        </div>
+
+        <h3>4.3 特殊情况：AccDays 超过当月总天数</h3>
+        <div class="calc-box">
+            <p><strong>场景</strong>：同一客户，另一笔业务日期为 2026-03-15，AccDays = 40，结算方式仍为月结。</p>
+            <ul>
+                <li>目标月份 = 2026-04-01</li>
+                <li>4月总天数 = 30 天</li>
+                <li>40 &gt; 30，因此到期日 = <strong>2026-04-30</strong>（月末）</li>
+                <li>若当前日期为 2026-07-02，则逾期天数 = 2026-07-02 减去 2026-04-30 = <strong>63 天</strong>（重度）</li>
+            </ul>
+        </div>
+
+        <h3>4.4 对比自然日顺延的差异</h3>
+        <p>如果采用简单的“业务日期 + AccDays”方式（非月结），则第一笔的到期日为 2026-01-15 + 25 = 2026-02-09，逾期天数为 143 天，比月结算法多了 16 天。月结算法实际上给予了客户更长的宽限期（因为从月初开始计算），更符合“月结”的商业惯例。</p>
+
+        <!-- ========== 五、核心数据表与字段说明 ========== -->
+        <h2>五、核心数据表与字段说明</h2>
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>表名</th><th>关键字段</th><th>业务含义</th></tr></thead>
+                <tbody>
+                    <tr><td><code>f9_Cost</code></td><td><code>Entrust, BizDate, Saler, Service, CtrlOffice</code></td><td>成本单主表</td></tr>
+                    <tr><td><code>f9_Costitem</code></td><td><code>CostId, Ioid, Amount, Ysje, ChgSign, ChgRate, CostName, WhoName</code></td><td>成本明细表（收入）</td></tr>
+                    <tr><td><code>f9_CusContract</code></td><td><code>CusFullName, CtClass, AccDays, PayWayCd</code></td><td>虚拟账期合同（提供账期与结算方式）</td></tr>
+                    <tr><td><code>f9_CusCredit</code></td><td><code>CusBcId, TempType, TempCredit, EffDate, ExpDate</code></td><td>临时账期调整（TempType='A'）</td></tr>
+                    <tr><td><code>f9_Company</code></td><td><code>cusname</code></td><td>内部公司清单（用于排除）</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- ========== 新增：f9_CusCredit 在超期计算中的角色说明 ========== -->
+        <!-- ============================================================ -->
+        <h2 style="margin-top:40px;">六、f9_CusCredit 在超期计算中的角色（重要）</h2>
+
+        <div class="highlight-box" style="background:#f1f0ff; border-left: 5px solid #7c3aed; padding:18px 22px; margin:16px 0; border-radius:10px;">
+            <p style="font-size:16px; font-weight:600; color:#5b21b6;">📌 核心结论</p>
+            <p style="font-size:15px;"><code>f9_CusCredit</code>（临时账期调整表）<strong>只影响账期天数（AccDays）</strong>，<strong style="color:#b91c1c;">不参与</strong>“目标结算月”的决策。“目标结算月”完全由 <strong>结算方式（PayWayCd）</strong> 独立决定。</p>
+        </div>
+
+        <h3>6.1 分工图解</h3>
+        <div class="mermaid-container">
+            <div class="mermaid">
+                graph LR
+                    A[业务日期<br>BizDate] --> B[当月第一天<br>MonthFirstDay]
+                    B --> C{结算方式<br>PayWayCd}
+                    C -->|M/M2/S/S1| D[延后月数]
+                    D --> E[目标结算月<br>TargetMonthFirstDay]
+
+                    F[f9_CusContract.AccDays] --> G[账期天数 AccDays]
+                    H[f9_CusCredit.TempAccDay] -.->|覆盖| G
+
+                    E --> I[到期日计算]
+                    G --> I
+                    I --> J[逾期天数]
+            </div>
+        </div>
+        <p style="text-align:center; font-size:13px; color:#64748b; margin-top:4px;">
+            <span class="badge blue">蓝色路径</span> 由结算方式独立决定，<span class="badge purple">紫色路径</span> 由 f9_CusCredit 影响
+        </p>
+
+        <h3>6.2 对比示例</h3>
+        <p>假设业务日期均为 <strong>2026-01-15</strong>，结算方式均为 <strong>月结（M，延后 1 个月）</strong>，目标结算月固定为 <strong>2026-02-01</strong>。</p>
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>场景</th><th>AccDays 来源</th><th>AccDays 值</th><th>到期日计算</th><th>结果</th></tr></thead>
+                <tbody>
+                    <tr><td>合同默认账期</td><td><code>f9_CusContract.AccDays</code></td><td>25</td><td>2026-02-01 + 24 天</td><td><strong>2026-02-25</strong></td></tr>
+                    <tr class="highlight-row"><td>临时账期覆盖</td><td><code>f9_CusCredit.TempAccDay</code></td><td>40</td><td>40 > 28（2月天数），取月末</td><td><strong>2026-02-28</strong></td></tr>
+                    <tr class="highlight-row"><td>临时账期覆盖</td><td><code>f9_CusCredit.TempAccDay</code></td><td>10</td><td>2026-02-01 + 9 天</td><td><strong>2026-02-10</strong></td></tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="calc-box" style="border-left-color:#7c3aed;">
+            <p><strong>📌 结论</strong>：</p>
+            <ul>
+                <li><strong>目标结算月始终是 2026-02-01</strong>（因为结算方式没变）。</li>
+                <li><code>f9_CusCredit</code> <strong>只改变了 AccDays 这个数字</strong>，从而改变了到期日在目标月份内的具体位置（月初、月中、月末）。</li>
+                <li>因此，<strong>“目标结算月”由结算方式决定，“到期日”由账期天数决定</strong>，两者职责分明。</li>
+            </ul>
+        </div>
+
+        <!-- ========== 七、结算方式与延后月数映射 ========== -->
+        <h2>七、结算方式与延后月数映射</h2>
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>PayWayCd</th><th>结算方式名称</th><th>延后月数</th><th>说明</th></tr></thead>
+                <tbody>
+                    <tr><td>M</td><td>月结</td><td>1</td><td>次月月初开始计算账期</td></tr>
+                    <tr><td>M2</td><td>两月结</td><td>2</td><td>隔两月月初开始</td></tr>
+                    <tr><td>S</td><td>三月结</td><td>3</td><td>隔三月月初开始</td></tr>
+                    <tr><td>S1</td><td>四月结</td><td>4</td><td>隔四月月初开始</td></tr>
+                    <tr><td>其他或 NULL</td><td>默认月结</td><td>1</td><td>兜底逻辑</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- ========== 八、输出结果示例 ========== -->
+        <h2>八、输出结果示例</h2>
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>委托人</th><th>业务员</th><th>超期未收总额</th><th>1-30天(轻度)</th><th>31-60天(中度)</th><th>61-90天(重度)</th><th>90天以上(高危)</th><th>最大超期天数</th></tr></thead>
+                <tbody>
+                    <tr><td>好客贸易有限公司</td><td>李强</td><td>156,000.00</td><td>0.00</td><td>0.00</td><td>50,000.00</td><td>106,000.00</td><td>127</td></tr>
+                    <tr><td>恒达供应链</td><td>王芳</td><td>89,200.00</td><td>12,000.00</td><td>30,000.00</td><td>47,200.00</td><td>0.00</td><td>78</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <p style="font-size:14px; color:#64748b; margin-top:6px;">💡 结果按“超期未收总额”降序排列，便于优先跟进高风险客户。</p>
+
+        <!-- ========== 九、注意事项 ========== -->
+        <h2>九、注意事项</h2>
+        <ul style="margin-left:22px; color:#334155; font-size:14px; margin-bottom:16px;">
+            <li><strong>月结算法依赖结算方式</strong>：如果合同结算方式不是月结系列（如现结），延后月数可能为 0，此时目标月份 = 业务月份，账期从当月开始计算，逻辑依然成立。</li>
+            <li><strong>临时账期覆盖合同账期</strong>：系统优先取 <code>f9_CusCredit</code> 中有效的临时账期（<code>TempType='A'</code>），若无则取合同 <code>AccDays</code>。<br />
+                <span class="badge purple">重要</span> <code>f9_CusCredit</code> 只影响 <code>AccDays</code>，<strong>不改变</strong>目标结算月。
+            </li>
+            <li><strong>到期日边界处理</strong>：当 <code>AccDays</code> 等于目标月份总天数时，到期日正好是月末（符合规则）。</li>
+            <li><strong>性能建议</strong>：该 SQL 涉及多表关联和子查询，建议在 <code>f9_Costitem</code> 的 <code>CostId</code>、<code>Ioid</code>、<code>redid</code> 及 <code>f9_Cost.BizDate</code> 上建立索引。</li>
+        </ul>
+
+        <div class="footnote">
+            <strong>说明</strong>：本文档基于超期应收监控 SQL 逆向提炼，所用函数（如 <code>months_add</code>、<code>days_add</code>、<code>LAST_DAY</code>）为 Doris 特有，若迁移至其他数据库需做相应适配。
+        </div>
+
+    </div>
+
+    <script>
+        mermaid.initialize({
+            theme: 'neutral',
+            fontFamily: '"SF Mono", Menlo, Consolas, monospace',
+            fontSize: 16,
+            flowchart: {
+                useMaxWidth: true,
+                htmlLabels: true,
+                padding: 20,
+                rankSpacing: 60,
+                nodeSpacing: 40
+            }
+        });
+    </script>
+</body>
+</html>
