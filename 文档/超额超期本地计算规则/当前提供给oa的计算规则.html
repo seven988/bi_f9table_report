@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>虚拟账期合同 · 风控规则文档（统一授信版）</title>
+    <title>虚拟账期合同 · 风控规则文档（统一授信 + P超期特殊处理）</title>
     <style>
         /* ===== Reset & Base ===== */
         * {
@@ -131,14 +131,12 @@
             gap: 0.3rem 1.8rem;
             align-items: baseline;
         }
-        /* 主要章节标题独占一行 */
         .toc-grid .main-toc {
             flex: 0 0 100%;
             font-weight: 600;
             color: #0b2b4a;
             margin-top: 0.2rem;
         }
-        /* 子项正常排列 */
         .toc-grid a:not(.main-toc) {
             font-size: 0.95rem;
             color: #1e293b;
@@ -150,10 +148,6 @@
         }
         .toc-grid a:not(.main-toc):hover {
             border-bottom-color: #2563eb;
-        }
-        /* 主要标题也可以有hover效果，但不需要下划线 */
-        .toc-grid .main-toc:hover {
-            text-decoration: none;
         }
 
         /* ===== Cards / Sections ===== */
@@ -188,6 +182,9 @@
         }
         .rule-box.blue {
             border-left-color: #2563eb;
+        }
+        .rule-box.orange {
+            border-left-color: #ea580c;
         }
 
         .rule-box strong {
@@ -444,14 +441,15 @@
     <h1>📋 虚拟账期合同 · 风控规则</h1>
     <div class="subtitle">
         超额（Overdraft） &amp; 超期（Overdue） 计算规则详解
-        <span>v2.1</span>
+        <span>v2.2</span>
+        <span class="change-tag">🔀 P 超期特殊处理</span>
     </div>
 
     <!-- ===== TOC ===== -->
     <div class="toc">
         <div class="toc-title">📑 目录</div>
         <div class="toc-grid">
-            <!-- 主要章节单独一行 -->
+            <!-- 主标题独占一行 -->
             <a href="#sec-overdraft" class="main-toc">一、超额 (Overdraft)</a>
             <a href="#sec-overdraft-scope">1. 计算范围</a>
             <a href="#sec-overdraft-unpaid">2. 未收金额</a>
@@ -462,7 +460,8 @@
             <a href="#sec-overdue-paymonths">1. 账期类型</a>
             <a href="#sec-overdue-days">2. 账期 &amp; 延期</a>
             <a href="#sec-overdue-settlement">3. 结算日计算</a>
-            <a href="#sec-overdue-result">4. 超期判定</a>
+            <a href="#sec-overdue-p-special">4. 付款方式 P 的特殊处理</a>
+            <a href="#sec-overdue-result">5. 超期判定</a>
 
             <a href="#sec-flow" class="main-toc">三、整体流程</a>
         </div>
@@ -557,7 +556,7 @@
     <!-- ============================================================ -->
     <h2 id="sec-overdue">
         <span>二、超期（Overdue）</span>
-        <span class="badge orange">逐笔计算</span>
+        <span class="badge orange">逐笔计算（P 特殊）</span>
     </h2>
 
     <div class="section-card">
@@ -565,13 +564,13 @@
         <p>超期针对 <strong>每一笔未收费用</strong> 分别计算。参与计算的数据同样要求 <code>Amount &gt; Ysje</code>（存在未收金额）。</p>
 
         <h3 id="sec-overdue-paymonths">1. 获取账期类型</h3>
-        <p>根据付款方式 <code>PayWayCd</code> 转换为月数：</p>
+        <p>根据付款方式 <code>PayWayCd</code> 转换为月数（仅用于非 P 方式）：</p>
 
         <div class="table-wrap">
             <table>
                 <thead><tr><th>付款方式</th><th>代码</th><th>月数</th></tr></thead>
                 <tbody>
-                <tr><td>现付</td><td><code>P</code></td><td>0</td></tr>
+                <tr><td>现付</td><td><code>P</code></td><td>—（特殊处理）</td></tr>
                 <tr><td>月结</td><td><code>M1</code></td><td>1</td></tr>
                 <tr><td>月结2</td><td><code>M2</code></td><td>2</td></tr>
                 <tr><td>月结3</td><td><code>M3</code></td><td>3</td></tr>
@@ -580,9 +579,8 @@
                 </tbody>
             </table>
         </div>
-        <p>记为 <code>payMonths</code>。</p>
 
-        <h3 id="sec-overdue-days">2. 账期天数 &amp; 临时延期</h3>
+        <h3 id="sec-overdue-days">2. 账期天数 &amp; 临时延期（通用）</h3>
         <ul>
             <li><strong>合同账期天数：</strong> <code>AccDays</code>（如 25 天）</li>
             <li><strong>临时延期天数：</strong> 查询 <code>CusCredit</code>
@@ -593,10 +591,11 @@
             </li>
         </ul>
         <div class="rule-box">
-            <strong>X = AccDays + TempCredit</strong>
+            <strong>X = AccDays + TempCredit</strong>（所有付款方式共用）
         </div>
 
-        <h3 id="sec-overdue-settlement">3. 结算日（SettlementDate）计算</h3>
+        <h3 id="sec-overdue-settlement">3. 结算日（SettlementDate）计算（非 P 方式）</h3>
+        <p>适用于 <code>M1/M2/M3/M4</code> 及其他非 P 方式，沿用原有复杂逻辑。</p>
 
         <h4>Step 1 — 计算 Y</h4>
         <div class="inline-code-block">
@@ -633,7 +632,16 @@
         </ul>
         <p>例如：7月，<code>settleDays=20</code> → 7月20日</p>
 
-        <h3 id="sec-overdue-result">4. 超期判定</h3>
+        <h3 id="sec-overdue-p-special">4. 付款方式 P 的特殊处理</h3>
+        <div class="rule-box orange">
+            <strong>🔀 现付（P）超期结算日简化：</strong><br>
+            结算日 = <code>BizDate + AccDays + TempCredit</code><br>
+            即：业务日期 + 合同账期天数 + 临时延期天数（来自 TempType='A'）。<br>
+            <span class="tag">不再进行月份换算</span>，直接按天累加。
+        </div>
+        <p>示例：<code>BizDate = 2026-05-18</code>，<code>AccDays = 25</code>，<code>TempCredit = 3</code> → 结算日 = 2026-06-15（5月18日 + 28天）。</p>
+
+        <h3 id="sec-overdue-result">5. 超期判定（所有付款方式）</h3>
         <div class="inline-code-block">
             超期天数 = 今天 - 结算日
         </div>
@@ -682,40 +690,36 @@
             ▼
             <span class="highlight">超期计算</span>（费用明细逐笔）
             │
-            BizDate
+            ├─ 付款方式 = <span class="highlight">P</span>  →  结算日 = BizDate + AccDays + TempCredit（延期）
             │
-            付款方式（月数: P=0, M1=1, M2=2, M3=3, M4=4）
-            │
-            AccDays
-            │
-            TempType = A 延期天数
+            └─ 付款方式 = M1/M2/M3/M4  →  沿用原有复杂计算（基于BizDate月份换算）
             │
             ▼
-            计算 SettlementDate
-            │
-            ▼
-            今天 &gt; SettlementDate ?
+            今天 &gt; 结算日 ?
             │
             ├─ 是 → <span class="highlight">Overdue = 1</span>
             └─ 否 → Overdue = 0
 
             <span style="display:block; margin-top: 0.8rem; padding-top: 0.8rem; border-top: 1px dashed #94a3b8;" class="dim">
-                ⚡ 变更点：现付（P）不再单独分支，所有付款方式统一参与授信比较；代码规范为 M1/M2/M3/M4。
+                ⚡ 变更点（v2.2）：现付（P）超期改用简化公式，不再参与月份换算；其他付款方式逻辑不变。
                 </span>
         </div>
 
         <div class="rule-box purple" style="margin-top:1.2rem;">
-            <strong>🧩 关键差异</strong> · 超额采用 <strong>客户维度汇总</strong> 计算（所有未收金额汇总后与授信比较）；超期采用 <strong>费用明细维度逐笔</strong> 计算（每笔费用独立计算结算日）。两部分的计算粒度不同，是当前实现的重要特点。
+            <strong>🧩 关键差异</strong> · 超额采用 <strong>客户维度汇总</strong> 计算（所有未收金额汇总后与授信比较）；超期采用 <strong>费用明细维度逐笔</strong> 计算，且 P 方式与其他方式计算逻辑不同。
         </div>
 
+        <div class="rule-box green" style="margin-top:0.8rem;">
+            <strong>📌 本次更新（v2.2）</strong> · 为付款方式 <code>P</code> 单独定义超期结算日：<code>BizDate + AccDays + TempCredit</code>，使其更符合现付业务场景。
+        </div>
     </div>
 
     <hr class="hr">
 
     <!-- ===== FOOTER ===== -->
     <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:0.5rem; font-size:0.9rem; color:#94a3b8; padding-top:0.5rem;">
-        <span>· 2026-07-10</span>
-        <span>虚拟账期合同风控规则 v2.1（统一授信 + 代码修正）</span>
+        <span>📅 基于 SQL 实现整理 · 2026-07-10</span>
+        <span>虚拟账期合同风控规则 v2.2（P 超期特殊处理）</span>
     </div>
 
 </div>
