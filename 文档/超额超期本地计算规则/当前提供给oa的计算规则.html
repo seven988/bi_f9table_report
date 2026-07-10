@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>虚拟账期合同 · 风控规则文档（统一授信版）</title>
+    <style>
+        /* ===== Reset & Base ===== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: #f6f9fc;
+            color: #1e293b;
+            line-height: 1.7;
+            padding: 2rem 1rem;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 24px;
+            box-shadow: 0 20px 60px rgba(0, 20, 40, 0.08);
+            padding: 2.5rem 3rem;
+        }
+
+        /* ===== Typography ===== */
+        h1 {
+            font-size: 2.2rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            color: #0b2b4a;
+            border-bottom: 4px solid #2563eb;
+            padding-bottom: 0.75rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .subtitle {
+            color: #64748b;
+            font-size: 1rem;
+            margin-bottom: 2rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        .subtitle span {
+            background: #eef2ff;
+            color: #2563eb;
+            padding: 0.15rem 0.8rem;
+            border-radius: 20px;
+            font-weight: 500;
+            font-size: 0.85rem;
+        }
+        .subtitle .change-tag {
+            background: #dcfce7;
+            color: #15803d;
+        }
+
+        h2 {
+            font-size: 1.6rem;
+            font-weight: 600;
+            margin-top: 2.8rem;
+            margin-bottom: 1.2rem;
+            color: #0b2b4a;
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            flex-wrap: wrap;
+        }
+        h2 .badge {
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 0.2rem 0.9rem;
+            border-radius: 30px;
+            background: #2563eb;
+            color: #fff;
+            letter-spacing: 0.02em;
+        }
+        h2 .badge.orange {
+            background: #ea580c;
+        }
+        h2 .badge.green {
+            background: #16a34a;
+        }
+
+        h3 {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-top: 1.8rem;
+            margin-bottom: 0.6rem;
+            color: #1e293b;
+        }
+
+        h4 {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-top: 1.4rem;
+            margin-bottom: 0.3rem;
+            color: #334155;
+        }
+
+        p {
+            margin-bottom: 0.8rem;
+        }
+
+        /* ===== TOC ===== */
+        .toc {
+            background: #f8fafc;
+            border-radius: 16px;
+            padding: 1.5rem 2rem;
+            margin: 1.8rem 0 2.5rem 0;
+            border: 1px solid #e9edf2;
+        }
+        .toc-title {
+            font-weight: 600;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: #64748b;
+            margin-bottom: 0.6rem;
+        }
+        .toc-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.3rem 1.8rem;
+        }
+        .toc-grid a {
+            font-size: 0.95rem;
+            color: #1e293b;
+            font-weight: 500;
+            border-bottom: 2px solid transparent;
+            padding-bottom: 0.1rem;
+            transition: border-color 0.2s;
+            text-decoration: none;
+        }
+        .toc-grid a:hover {
+            border-bottom-color: #2563eb;
+        }
+
+        /* ===== Cards / Sections ===== */
+        .section-card {
+            background: #fafcff;
+            border-radius: 18px;
+            padding: 1.8rem 2rem;
+            margin: 1.8rem 0;
+            border: 1px solid #eef2f6;
+            transition: box-shadow 0.2s;
+        }
+        .section-card:hover {
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.02);
+        }
+
+        .rule-box {
+            background: #ffffff;
+            border-left: 4px solid #2563eb;
+            padding: 1.2rem 1.8rem;
+            margin: 1.2rem 0;
+            border-radius: 0 12px 12px 0;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.02);
+        }
+        .rule-box.warn {
+            border-left-color: #ea580c;
+        }
+        .rule-box.green {
+            border-left-color: #16a34a;
+        }
+        .rule-box.purple {
+            border-left-color: #7c3aed;
+        }
+        .rule-box.blue {
+            border-left-color: #2563eb;
+        }
+
+        .rule-box strong {
+            color: #0b2b4a;
+        }
+
+        /* ===== Code & Inline ===== */
+        code {
+            font-family: "JetBrains Mono", "Fira Code", "Cascadia Code", monospace;
+            font-size: 0.9em;
+            background: #eef2f6;
+            padding: 0.1rem 0.5rem;
+            border-radius: 6px;
+            color: #1e293b;
+            word-break: break-word;
+        }
+
+        pre {
+            background: #0b1a2a;
+            color: #e2e8f0;
+            padding: 1.2rem 1.6rem;
+            border-radius: 14px;
+            overflow-x: auto;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            margin: 1.2rem 0;
+            font-family: "JetBrains Mono", "Fira Code", monospace;
+            border: 1px solid #1e2f40;
+        }
+        pre .comment {
+            color: #94a3b8;
+            font-style: italic;
+        }
+        pre .keyword {
+            color: #f472b6;
+        }
+        pre .string {
+            color: #a3e635;
+        }
+        pre .number {
+            color: #60a5fa;
+        }
+        pre .operator {
+            color: #fbbf24;
+        }
+
+        .inline-code-block {
+            background: #f1f5f9;
+            border-radius: 10px;
+            padding: 0.8rem 1.4rem;
+            font-family: "JetBrains Mono", monospace;
+            font-size: 0.9rem;
+            margin: 0.6rem 0;
+            border: 1px solid #e2e8f0;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        /* ===== Table ===== */
+        .table-wrap {
+            overflow-x: auto;
+            margin: 1.2rem 0;
+            border-radius: 14px;
+            border: 1px solid #e9edf2;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.95rem;
+            background: #fff;
+        }
+        th {
+            background: #f1f5f9;
+            font-weight: 600;
+            color: #0b2b4a;
+            padding: 0.7rem 1rem;
+            text-align: left;
+            border-bottom: 2px solid #dce2ea;
+        }
+        td {
+            padding: 0.6rem 1rem;
+            border-bottom: 1px solid #ecf0f4;
+        }
+        tr:last-child td {
+            border-bottom: none;
+        }
+        .table-wrap table tr:hover {
+            background: #fafcff;
+        }
+
+        /* ===== Flowchart (ascii art styled) ===== */
+        .flow {
+            background: #f1f5f9;
+            border-radius: 16px;
+            padding: 1.8rem 1.8rem;
+            font-family: "JetBrains Mono", "Fira Code", monospace;
+            font-size: 0.85rem;
+            line-height: 1.8;
+            white-space: pre-wrap;
+            word-break: break-word;
+            border: 1px solid #e2e8f0;
+            margin: 1.5rem 0;
+            color: #1e293b;
+            overflow-x: auto;
+        }
+        .flow .highlight {
+            color: #2563eb;
+            font-weight: 600;
+        }
+        .flow .dim {
+            color: #64748b;
+        }
+        .flow .arrow {
+            color: #94a3b8;
+        }
+        .flow .deleted {
+            text-decoration: line-through;
+            color: #b91c1c;
+            opacity: 0.6;
+        }
+
+        /* ===== List styling ===== */
+        ul,
+        ol {
+            padding-left: 1.6rem;
+            margin-bottom: 1rem;
+        }
+        li {
+            margin-bottom: 0.3rem;
+        }
+
+        /* ===== Tags ===== */
+        .tag {
+            display: inline-block;
+            background: #eef2ff;
+            color: #2563eb;
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 0.1rem 0.7rem;
+            border-radius: 30px;
+            margin-right: 0.3rem;
+        }
+        .tag.orange {
+            background: #fff1e6;
+            color: #c2410c;
+        }
+        .tag.green {
+            background: #dcfce7;
+            color: #15803d;
+        }
+        .tag.purple {
+            background: #ede9fe;
+            color: #6d28d9;
+        }
+
+        /* ===== Divider ===== */
+        .hr {
+            border: none;
+            height: 1px;
+            background: linear-gradient(to right, #e2e8f0, transparent);
+            margin: 2.5rem 0;
+        }
+
+        /* ===== Responsive ===== */
+        @media (max-width: 720px) {
+            .container {
+                padding: 1.5rem 1.2rem;
+            }
+            h1 {
+                font-size: 1.7rem;
+            }
+            h2 {
+                font-size: 1.3rem;
+                flex-wrap: wrap;
+            }
+            .section-card {
+                padding: 1.2rem 1rem;
+            }
+            .rule-box {
+                padding: 0.8rem 1rem;
+            }
+            .toc {
+                padding: 1rem 1.2rem;
+            }
+            .toc-grid {
+                flex-direction: column;
+                gap: 0.2rem;
+            }
+            .flow {
+                font-size: 0.75rem;
+                padding: 1rem;
+                line-height: 1.7;
+            }
+            pre {
+                font-size: 0.8rem;
+                padding: 0.8rem 1rem;
+            }
+        }
+
+        @media print {
+            body {
+                background: #fff;
+                padding: 0.2in;
+            }
+            .container {
+                box-shadow: none;
+                padding: 0;
+            }
+            .toc {
+                background: #f8fafc;
+                border: 1px solid #ddd;
+            }
+            .section-card {
+                border: 1px solid #e2e8f0;
+                box-shadow: none;
+            }
+            .flow {
+                background: #f8fafc;
+                border: 1px solid #d0d7de;
+            }
+            pre {
+                background: #f1f5f9;
+                color: #1e293b;
+                border: 1px solid #d0d7de;
+            }
+            pre .comment {
+                color: #64748b;
+            }
+            pre .keyword {
+                color: #b45309;
+            }
+            pre .string {
+                color: #166534;
+            }
+            pre .number {
+                color: #1d4ed8;
+            }
+            pre .operator {
+                color: #9a3412;
+            }
+            .subtitle span {
+                background: #eef2ff;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+
+    <!-- ===== HEADER ===== -->
+    <h1>📋 虚拟账期合同 · 风控规则</h1>
+    <div class="subtitle">
+        超额（Overdraft） &amp; 超期（Overdue） 计算规则详解
+        <span>v2.1</span>
+    </div>
+
+    <!-- ===== TOC ===== -->
+    <div class="toc">
+        <div class="toc-title">📑 目录</div>
+        <div class="toc-grid">
+            <a href="#sec-overdraft">一、超额 (Overdraft)</a>
+            <a href="#sec-overdraft-scope">1. 计算范围</a>
+            <a href="#sec-overdraft-unpaid">2. 未收金额</a>
+            <a href="#sec-overdraft-credit">3. 授信额度</a>
+            <a href="#sec-overdraft-rule">4. 统一授信规则</a>
+            <a href="#sec-overdue">二、超期 (Overdue)</a>
+            <a href="#sec-overdue-paymonths">1. 账期类型</a>
+            <a href="#sec-overdue-days">2. 账期 &amp; 延期</a>
+            <a href="#sec-overdue-settlement">3. 结算日计算</a>
+            <a href="#sec-overdue-result">4. 超期判定</a>
+            <a href="#sec-flow">三、整体流程</a>
+        </div>
+    </div>
+
+    <hr class="hr">
+
+    <!-- ============================================================ -->
+    <!--                   一、超额                                      -->
+    <!-- ============================================================ -->
+    <h2 id="sec-overdraft">
+        <span>一、超额（Overdraft）</span>
+        <span class="badge green">统一规则</span>
+    </h2>
+
+    <div class="section-card">
+
+        <h3 id="sec-overdraft-scope">1. 计算范围</h3>
+        <p>仅统计满足以下条件的应收费用（<code>CostItem</code>）：</p>
+        <ul>
+            <li><code>Cost.EntrustCd = CusContract.CusCd</code> — 费用所属客户</li>
+            <li><code>CostItem.Ioid = 1</code></li>
+            <li><code>Amount &gt; Ysje</code> — 即存在未收金额</li>
+            <li><code>WhoName</code> 不属于 <code>Company</code> 表中的公司名称</li>
+        </ul>
+
+        <div class="rule-box">
+            <strong>✅ 参与计算的是：</strong> 客户应收、尚未收齐、<strong>非公司主体</strong> 的费用。
+        </div>
+
+        <div class="inline-code-block">
+            NOT EXISTS (
+            SELECT 1 FROM Company WHERE Company.CusName = CostItem.WhoName
+            )
+        </div>
+
+        <h3 id="sec-overdraft-unpaid">2. 未收金额（Unpaid）</h3>
+        <p>每笔费用：</p>
+        <div class="inline-code-block">未收金额 = Amount - Ysje</div>
+        <p>全部费用汇总：</p>
+        <div class="inline-code-block">
+            Unpaid = Σ(Amount - Ysje)
+            TotalAmount = Σ(Amount)
+            TotalReceived = Σ(Ysje)
+        </div>
+
+        <h3 id="sec-overdraft-credit">3. 可用授信额度</h3>
+        <ul>
+            <li><strong>正式授信：</strong> <code>CreditAmount</code></li>
+            <li><strong>临时授信：</strong> <code>TempCredit</code>
+                <ul>
+                    <li>条件：<code>TempType='C'</code>，<code>ApproveStatus='结束'</code>，当前日期介于 <code>EffDate ~ ExpDate</code></li>
+                    <li>若存在多条，<code>TempCredit = ΣTempCredit</code></li>
+                </ul>
+            </li>
+        </ul>
+        <div class="rule-box">
+            <strong>📌 可用授信 = CreditAmount + TempCredit</strong>
+        </div>
+
+        <h3 id="sec-overdraft-rule">4. 统一授信规则（所有付款方式）</h3>
+        <div class="rule-box blue">
+            <strong>🔄 规则变更：</strong> 所有付款方式（包括现付 <code>P</code>、月结 <code>M1/M2/M3/M4</code>）<strong>不再区分</strong>，统一采用以下授信比较规则。
+        </div>
+
+        <p>比较汇总未收金额 <code>Unpaid</code> 与可用授信 <code>CreditAmount + TempCredit</code>：</p>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                <tr><th>付款方式</th><th>判定条件</th><th>超额金额</th></tr>
+                </thead>
+                <tbody>
+                <tr>
+                    <td><strong>所有方式</strong><br><span class="tag">P</span> <span class="tag">M1</span> <span class="tag">M2</span> <span class="tag">M3</span> <span class="tag">M4</span></td>
+                    <td><strong>Unpaid &gt; 可用授信</strong></td>
+                    <td><code>OverdraftAmount = Unpaid - 可用授信</code><br><span class="tag green">若 ≤0 则无超额</span></td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="rule-box green">
+            <strong>✅ 现付（P）不再特殊处理</strong>，同样参与授信额度抵扣。仅当汇总未收金额超过可用授信总额时，才判定为超额。
+        </div>
+    </div>
+
+    <hr class="hr">
+
+    <!-- ============================================================ -->
+    <!--                   二、超期                                      -->
+    <!-- ============================================================ -->
+    <h2 id="sec-overdue">
+        <span>二、超期（Overdue）</span>
+        <span class="badge orange">逐笔计算</span>
+    </h2>
+
+    <div class="section-card">
+
+        <p>超期针对 <strong>每一笔未收费用</strong> 分别计算。参与计算的数据同样要求 <code>Amount &gt; Ysje</code>（存在未收金额）。</p>
+
+        <h3 id="sec-overdue-paymonths">1. 获取账期类型</h3>
+        <p>根据付款方式 <code>PayWayCd</code> 转换为月数：</p>
+
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>付款方式</th><th>代码</th><th>月数</th></tr></thead>
+                <tbody>
+                <tr><td>现付</td><td><code>P</code></td><td>0</td></tr>
+                <tr><td>月结</td><td><code>M1</code></td><td>1</td></tr>
+                <tr><td>月结2</td><td><code>M2</code></td><td>2</td></tr>
+                <tr><td>月结3</td><td><code>M3</code></td><td>3</td></tr>
+                <tr><td>月结4</td><td><code>M4</code></td><td>4</td></tr>
+                <tr><td>其它</td><td>—</td><td>0</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <p>记为 <code>payMonths</code>。</p>
+
+        <h3 id="sec-overdue-days">2. 账期天数 &amp; 临时延期</h3>
+        <ul>
+            <li><strong>合同账期天数：</strong> <code>AccDays</code>（如 25 天）</li>
+            <li><strong>临时延期天数：</strong> 查询 <code>CusCredit</code>
+                <ul>
+                    <li>条件：<code>TempType='A'</code>，<code>ApproveStatus='结束'</code>，当前日期有效</li>
+                    <li>记为 <code>TempCredit</code>（此处表示延期天数，若不存在则为 0）</li>
+                </ul>
+            </li>
+        </ul>
+        <div class="rule-box">
+            <strong>X = AccDays + TempCredit</strong>
+        </div>
+
+        <h3 id="sec-overdue-settlement">3. 结算日（SettlementDate）计算</h3>
+
+        <h4>Step 1 — 计算 Y</h4>
+        <div class="inline-code-block">
+            if X &gt; 30:
+            Y = X + 30
+            else:
+            Y = X + 30 × payMonths
+        </div>
+        <p>将月结月份与账期天数统一换算为“总天数”。</p>
+
+        <h4>Step 2 — 分解为月与日</h4>
+        <div class="inline-code-block">
+            if Y 能整除 30:
+            settleMonths = Y/30 - 1
+            settleDays   = 30
+            else:
+            settleMonths = floor(Y/30)
+            settleDays   = Y % 30
+        </div>
+
+        <h4>Step 3 — 基准月份</h4>
+        <p>以业务日期 <code>BizDate</code> 取该月第一天：</p>
+        <div class="inline-code-block">基准 = YYYY-MM-01</div>
+        <p>例如 <code>BizDate = 2026-05-18</code> → <code>2026-05-01</code></p>
+
+        <h4>Step 4 — 目标月份</h4>
+        <div class="inline-code-block">目标 = 基准 + settleMonths 个月</div>
+        <p>例如 <code>2026-05-01 + 2个月 = 2026-07-01</code></p>
+
+        <h4>Step 5 — 结算日</h4>
+        <ul>
+            <li>若 <code>settleDays</code> 超过目标月份的天数（如 31 日但二月只有 28 天），则取 <strong>月末最后一天</strong>。</li>
+            <li>否则：<div class="inline-code-block">结算日 = 目标月份第一天 + (settleDays - 1) 天</div></li>
+        </ul>
+        <p>例如：7月，<code>settleDays=20</code> → 7月20日</p>
+
+        <h3 id="sec-overdue-result">4. 超期判定</h3>
+        <div class="inline-code-block">
+            超期天数 = 今天 - 结算日
+        </div>
+        <p>SQL 实现：</p>
+        <div class="inline-code-block">
+            DATEDIFF(DAY, SettlementDate, GETDATE())
+        </div>
+
+        <div class="rule-box warn">
+            <strong>⚠️ 若 超期天数 &gt; 0</strong>，则 <code>Overdue = 1</code>（超期）；否则 <code>Overdue = 0</code>。
+        </div>
+        <div class="rule-box">
+            <strong>📌 最终 SQL 只返回 OverdueDays &gt; 0 的数据</strong>，即只有已经超过结算日期的未收费用才会进入超期结果。
+        </div>
+    </div>
+
+    <hr class="hr">
+
+    <!-- ============================================================ -->
+    <!--                   三、整体流程                                   -->
+    <!-- ============================================================ -->
+    <h2 id="sec-flow">
+        <span>三、整体流程</span>
+        <span class="badge purple">概览</span>
+    </h2>
+
+    <div class="section-card">
+        <div class="flow">
+            <span class="dim">费用（CostItem）</span>
+            │
+            ▼
+            <span class="highlight">过滤：</span>
+            Ioid=1
+            未收金额 &gt; 0
+            非 Company 主体
+            │
+            ▼
+            <span class="highlight">统计全部未收金额 (Unpaid)</span>
+            │
+            ▼
+            Unpaid &gt; 正式授信 + 临时授信 ?
+            │
+            ├─ 是 → <span class="highlight">超额 (Overdraft=1)</span>  金额 = Unpaid - 授信
+            └─ 否 → 正常 (Overdraft=0)
+            │
+            ▼
+            <span class="highlight">超期计算</span>（费用明细逐笔）
+            │
+            BizDate
+            │
+            付款方式（月数: P=0, M1=1, M2=2, M3=3, M4=4）
+            │
+            AccDays
+            │
+            TempType = A 延期天数
+            │
+            ▼
+            计算 SettlementDate
+            │
+            ▼
+            今天 &gt; SettlementDate ?
+            │
+            ├─ 是 → <span class="highlight">Overdue = 1</span>
+            └─ 否 → Overdue = 0
+
+            <span style="display:block; margin-top: 0.8rem; padding-top: 0.8rem; border-top: 1px dashed #94a3b8;" class="dim">
+                ⚡ 变更点：现付（P）不再单独分支，所有付款方式统一参与授信比较；代码规范为 M1/M2/M3/M4。
+                </span>
+        </div>
+
+        <div class="rule-box purple" style="margin-top:1.2rem;">
+            <strong>🧩 关键差异</strong> · 超额采用 <strong>客户维度汇总</strong> 计算（所有未收金额汇总后与授信比较）；超期采用 <strong>费用明细维度逐笔</strong> 计算（每笔费用独立计算结算日）。两部分的计算粒度不同，是当前实现的重要特点。
+        </div>
+
+        <div class="rule-box green" style="margin-top:0.8rem;">
+            <strong>📌 本次更新（v2.1）</strong> · 修正付款方式代码：将 <code>M</code> 更正为 <code>M1</code>，与 <code>M2/M3/M4</code> 保持命名一致。
+        </div>
+    </div>
+
+    <hr class="hr">
+
+    <!-- ===== FOOTER ===== -->
+    <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:0.5rem; font-size:0.9rem; color:#94a3b8; padding-top:0.5rem;">
+        <span>📅 基于 SQL 实现整理 · 2026-07-10</span>
+        <span>虚拟账期合同风控规则 v2.1（统一授信 + 代码修正）</span>
+    </div>
+
+</div>
+</body>
+</html>
