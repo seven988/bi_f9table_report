@@ -129,8 +129,17 @@
             display: flex;
             flex-wrap: wrap;
             gap: 0.3rem 1.8rem;
+            align-items: baseline;
         }
-        .toc-grid a {
+        /* 主要章节标题独占一行 */
+        .toc-grid .main-toc {
+            flex: 0 0 100%;
+            font-weight: 600;
+            color: #0b2b4a;
+            margin-top: 0.2rem;
+        }
+        /* 子项正常排列 */
+        .toc-grid a:not(.main-toc) {
             font-size: 0.95rem;
             color: #1e293b;
             font-weight: 500;
@@ -139,8 +148,12 @@
             transition: border-color 0.2s;
             text-decoration: none;
         }
-        .toc-grid a:hover {
+        .toc-grid a:not(.main-toc):hover {
             border-bottom-color: #2563eb;
+        }
+        /* 主要标题也可以有hover效果，但不需要下划线 */
+        .toc-grid .main-toc:hover {
+            text-decoration: none;
         }
 
         /* ===== Cards / Sections ===== */
@@ -361,8 +374,10 @@
                 padding: 1rem 1.2rem;
             }
             .toc-grid {
-                flex-direction: column;
-                gap: 0.2rem;
+                gap: 0.2rem 1rem;
+            }
+            .toc-grid .main-toc {
+                margin-top: 0.4rem;
             }
             .flow {
                 font-size: 0.75rem;
@@ -436,17 +451,20 @@
     <div class="toc">
         <div class="toc-title">📑 目录</div>
         <div class="toc-grid">
-            <a href="#sec-overdraft">一、超额 (Overdraft)</a>
+            <!-- 主要章节单独一行 -->
+            <a href="#sec-overdraft" class="main-toc">一、超额 (Overdraft)</a>
             <a href="#sec-overdraft-scope">1. 计算范围</a>
             <a href="#sec-overdraft-unpaid">2. 未收金额</a>
             <a href="#sec-overdraft-credit">3. 授信额度</a>
             <a href="#sec-overdraft-rule">4. 统一授信规则</a>
-            <a href="#sec-overdue">二、超期 (Overdue)</a>
+
+            <a href="#sec-overdue" class="main-toc">二、超期 (Overdue)</a>
             <a href="#sec-overdue-paymonths">1. 账期类型</a>
             <a href="#sec-overdue-days">2. 账期 &amp; 延期</a>
             <a href="#sec-overdue-settlement">3. 结算日计算</a>
             <a href="#sec-overdue-result">4. 超期判定</a>
-            <a href="#sec-flow">三、整体流程</a>
+
+            <a href="#sec-flow" class="main-toc">三、整体流程</a>
         </div>
     </div>
 
@@ -690,16 +708,13 @@
             <strong>🧩 关键差异</strong> · 超额采用 <strong>客户维度汇总</strong> 计算（所有未收金额汇总后与授信比较）；超期采用 <strong>费用明细维度逐笔</strong> 计算（每笔费用独立计算结算日）。两部分的计算粒度不同，是当前实现的重要特点。
         </div>
 
-        <div class="rule-box green" style="margin-top:0.8rem;">
-            <strong>📌 本次更新（v2.1）</strong> · 修正付款方式代码：将 <code>M</code> 更正为 <code>M1</code>，与 <code>M2/M3/M4</code> 保持命名一致。
-        </div>
     </div>
 
     <hr class="hr">
 
     <!-- ===== FOOTER ===== -->
     <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:0.5rem; font-size:0.9rem; color:#94a3b8; padding-top:0.5rem;">
-        <span>📅 基于 SQL 实现整理 · 2026-07-10</span>
+        <span>· 2026-07-10</span>
         <span>虚拟账期合同风控规则 v2.1（统一授信 + 代码修正）</span>
     </div>
 
