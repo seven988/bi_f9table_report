@@ -527,7 +527,7 @@
 
         <h3 id="sec-overdraft-rule">4. 统一授信规则（所有付款方式）</h3>
         <div class="rule-box blue">
-            <strong>🔄 规则变更：</strong> 所有付款方式（包括现付 <code>P</code>、月结 <code>M1/M2/M3/M4</code>）<strong>不再区分</strong>，统一采用以下授信比较规则。
+            <strong>🔄 规则变更：</strong> 所有付款方式（包括现付 <code>P</code>、月结 <code>M/M2/M3/M4</code>）<strong>不再区分</strong>，统一采用以下授信比较规则。
         </div>
 
         <p>比较汇总未收金额 <code>Unpaid</code>（已按汇率折算）与可用授信 <code>CreditAmount + TempCredit</code>：</p>
@@ -539,7 +539,7 @@
                 </thead>
                 <tbody>
                 <tr>
-                    <td><strong>所有方式</strong><br><span class="tag">P</span> <span class="tag">M1</span> <span class="tag">M2</span> <span class="tag">M3</span> <span class="tag">M4</span></td>
+                    <td><strong>所有方式</strong><br><span class="tag">P</span> <span class="tag">M</span> <span class="tag">M2</span> <span class="tag">M3</span> <span class="tag">M4</span></td>
                     <td><strong>Unpaid &gt; 可用授信</strong></td>
                     <td><code>OverdraftAmount = Unpaid - 可用授信</code><br><span class="tag green">若 ≤0 则无超额</span></td>
                 </tr>
@@ -574,7 +574,7 @@
                 <thead><tr><th>付款方式</th><th>代码</th><th>月数</th></tr></thead>
                 <tbody>
                 <tr><td>现付</td><td><code>P</code></td><td>—（特殊处理）</td></tr>
-                <tr><td>月结</td><td><code>M1</code></td><td>1</td></tr>
+                <tr><td>月结</td><td><code>M</code></td><td>1</td></tr>
                 <tr><td>月结2</td><td><code>M2</code></td><td>2</td></tr>
                 <tr><td>月结3</td><td><code>M3</code></td><td>3</td></tr>
                 <tr><td>月结4</td><td><code>M4</code></td><td>4</td></tr>
@@ -598,7 +598,7 @@
         </div>
 
         <h3 id="sec-overdue-settlement">3. 结算日（SettlementDate）计算（非 P 方式）</h3>
-        <p>适用于 <code>M1/M2/M3/M4</code> 及其他非 P 方式，沿用原有复杂逻辑。</p>
+        <p>适用于 <code>M/M2/M3/M4</code> 及其他非 P 方式，沿用原有复杂逻辑。</p>
 
         <h4>Step 1 — 计算 Y</h4>
         <div class="inline-code-block">
@@ -697,7 +697,7 @@
             │
             ├─ 付款方式 = <span class="highlight">P</span>  →  结算日 = BizDate + AccDays + TempCredit（延期）
             │
-            └─ 付款方式 = M1/M2/M3/M4  →  沿用原有复杂计算（基于BizDate月份换算）
+            └─ 付款方式 = M/M2/M3/M4  →  沿用原有复杂计算（基于BizDate月份换算）
             │
             ▼
             今天 &gt; 结算日 ?
