@@ -481,7 +481,6 @@
             <li>关联 <code>CusContract</code>（虚拟账期合同）通过 <code>c.EntrustCd = cc.CusCd</code> 且 <code>cc.CtClass = N'虚拟账期合同'</code></li>
             <li><strong>未明确过滤 <code>Ioid=1</code></strong>（实际业务中可能在其他层实现，但核心 SQL 未包含此条件，故当前规则不强制）</li>
             <li><strong>原币比较：</strong> 实际 SQL 未显式过滤 <code>Amount &gt; Ysje</code>，但通过 <code>unrec</code>（汇总后的未收金额）判断超额，若 <code>unrec &gt; 0</code> 则可能存在未收；但为逻辑完整，仍保留原币有未收的判断，但文档按 SQL 描述。</li>
-            <li><code>WhoName</code> 不属于 <code>Company</code> 表（外部条件，SQL 中未体现，但业务上仍应保留）</li>
         </ul>
         <div class="rule-box">
             <strong>✅ 参与计算的是：</strong> 客户应收、关联虚拟账期合同的费用（公司主体排除仍适用）。
@@ -729,7 +728,6 @@
             · 汇率换算支持 <code>ChgSign</code>（乘或除）<br>
             · 四舍五入发生在汇总后（<code>CAST</code> 到 DECIMAL(18,2)）<br>
             · 临时授信（C类）从 <code>CusCredit</code> 按合同汇总<br>
-            · 未强制过滤 <code>Ioid=1</code> 或 <code>Amount &gt; Ysje</code>（以 SQL 为准）
         </div>
     </div>
 
