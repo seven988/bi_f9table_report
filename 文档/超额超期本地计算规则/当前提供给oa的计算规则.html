@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>虚拟账期合同 · 风控规则文档（原币筛选 + 汇率统计）</title>
+    <title>虚拟账期合同 · 风控规则（超额SQL精确匹配）</title>
     <style>
         /* ===== Reset & Base ===== */
         * {
@@ -436,8 +436,8 @@
     <h1>📋 虚拟账期合同 · 风控规则</h1>
     <div class="subtitle">
         超额（Overdraft） &amp; 超期（Overdue） 计算规则详解
-        <span>v2.4</span>
-        <span class="change-tag">🔄 原币筛选 + 汇率统计</span>
+        <span>v2.5</span>
+        <span class="change-tag">⚙️ 超额SQL精确匹配（汇率乘除 + 汇总四舍五入）</span>
     </div>
 
     <!-- ===== TOC ===== -->
@@ -446,8 +446,8 @@
         <div class="toc-grid">
             <!-- 主标题独占一行 -->
             <a href="#sec-overdraft" class="main-toc">一、超额 (Overdraft)</a>
-            <a href="#sec-overdraft-scope">1. 计算范围（原币筛选）</a>
-            <a href="#sec-overdraft-unpaid">2. 未收金额（汇率统计）</a>
+            <a href="#sec-overdraft-scope">1. 计算范围</a>
+            <a href="#sec-overdraft-unpaid">2. 未收金额（汇率换算 + 汇总四舍五入）</a>
             <a href="#sec-overdraft-credit">3. 授信额度</a>
             <a href="#sec-overdraft-rule">4. 统一授信规则</a>
 
@@ -474,63 +474,68 @@
 
     <div class="section-card">
 
-        <h3 id="sec-overdraft-scope">1. 计算范围（原币筛选）</h3>
-        <p>仅统计满足以下条件的应收费用（<code>CostItem</code>）：</p>
+        <h3 id="sec-overdraft-scope">1. 计算范围</h3>
+        <p>根据最新 SQL，参与超额计算的费用需满足以下条件：</p>
         <ul>
-            <li><code>Cost.EntrustCd = CusContract.CusCd</code> — 费用所属客户</li>
-            <li><code>CostItem.Ioid = 1</code></li>
-            <li><code>Amount &gt; Ysje</code> — <strong>直接使用原币金额判断是否存在未收金额</strong>（不涉及汇率折算）</li>
-            <li><code>WhoName</code> 不属于 <code>Company</code> 表中的公司名称</li>
+            <li>费用表 <code>CostItem</code> 关联 <code>Cost</code>（<code>u.CostId = c.Id</code> 且 <code>c.EntrustCd = u.WhoCd</code>）</li>
+            <li>关联 <code>CusContract</code>（虚拟账期合同）通过 <code>c.EntrustCd = cc.CusCd</code> 且 <code>cc.CtClass = N'虚拟账期合同'</code></li>
+            <li><strong>未明确过滤 <code>Ioid=1</code></strong>（实际业务中可能在其他层实现，但核心 SQL 未包含此条件，故当前规则不强制）</li>
+            <li><strong>原币比较：</strong> 实际 SQL 未显式过滤 <code>Amount &gt; Ysje</code>，但通过 <code>unrec</code>（汇总后的未收金额）判断超额，若 <code>unrec &gt; 0</code> 则可能存在未收；但为逻辑完整，仍保留原币有未收的判断，但文档按 SQL 描述。</li>
+            <li><code>WhoName</code> 不属于 <code>Company</code> 表（外部条件，SQL 中未体现，但业务上仍应保留）</li>
         </ul>
-
         <div class="rule-box">
-            <strong>✅ 参与计算的是：</strong> 客户应收、尚未收齐（原币未收）、<strong>非公司主体</strong> 的费用。
+            <strong>✅ 参与计算的是：</strong> 客户应收、关联虚拟账期合同的费用（公司主体排除仍适用）。
         </div>
 
-        <div class="inline-code-block">
-            NOT EXISTS (
-            SELECT 1 FROM Company WHERE Company.CusName = CostItem.WhoName
-            )
-        </div>
-
-        <h3 id="sec-overdraft-unpaid">2. 未收金额（Unpaid）—— 按汇率折算并四舍五入后汇总</h3>
-        <p>在筛选出符合条件的费用后，计算未收金额时需按汇率折算为本位币，并四舍五入保留 2 位小数：</p>
-        <div class="inline-code-block">
-            折后费用 = ROUND(Amount * ChgRate, 2)
-            折后已收 = ROUND(Ysje * ChgRate, 2)
-            单笔未收金额 = 折后费用 - 折后已收
-        </div>
-        <p>全部费用汇总（均基于折本位币金额）：</p>
-        <div class="inline-code-block">
-            TotalAmount   = Σ(ROUND(Amount * ChgRate, 2))
-            TotalReceived = Σ(ROUND(Ysje * ChgRate, 2))
-            Unpaid        = Σ(折后费用 - 折后已收)
-        </div>
-        <div class="rule-box blue">
-            <strong>📌 精度说明：</strong> 每笔费用分别乘以汇率并四舍五入后，再做差值汇总（与先汇总再四舍五入的结果可能存在分位差异）。<br>
-            <strong>注意：</strong> 筛选条件（<code>Amount &gt; Ysje</code>）仍使用原币比较，不因汇率折算而改变。
-        </div>
-
-        <h3 id="sec-overdraft-credit">3. 可用授信额度</h3>
+        <h3 id="sec-overdraft-unpaid">2. 未收金额（Unpaid）—— 汇率换算及四舍五入</h3>
+        <p>根据最新 SQL，金额折算采用以下规则：</p>
         <ul>
-            <li><strong>正式授信：</strong> <code>CreditAmount</code></li>
-            <li><strong>临时授信：</strong> <code>TempCredit</code>
+            <li><strong>汇率取值：</strong> 从 <code>ExRate</code> 表获取最新有效汇率（<code>EffDate</code> 最大），目标币种 <code>DestCurrcd = 'CNY'</code>，且当前日期在有效期内。</li>
+            <li><strong>换算方式：</strong> 依据 <code>ChgSign</code> 字段：
                 <ul>
-                    <li>条件：<code>TempType='C'</code>，<code>ApproveStatus='结束'</code>，当前日期介于 <code>EffDate ~ ExpDate</code></li>
-                    <li>若存在多条，<code>TempCredit = ΣTempCredit</code></li>
+                    <li>若 <code>Currcd = 'CNY'</code>，则折算系数为 1。</li>
+                    <li>若 <code>ChgSign = '*'</code>，则折算系数 = <code>ChgRate</code>。</li>
+                    <li>若 <code>ChgSign = '/'</code>，则折算系数 = <code>1 / ChgRate</code>。</li>
+                </ul>
+            </li>
+            <li><strong>汇总计算：</strong>
+                <div class="inline-code-block">
+                    折后费用 = Amount × 折算系数
+                    折后已收 = Ysje × 折算系数
+                </div>
+                分别对 <code>折后费用</code> 和 <code>折后已收</code> 做 <strong>汇总求和</strong>，最后将两个总和相减得到 <code>unrec</code>。
+            </li>
+            <li><strong>精度处理：</strong> 最终结果使用 <code>CAST(... AS DECIMAL(18,2))</code> 转换为保留 2 位小数的数值。<br>
+                <span class="tag orange">重要</span> 四舍五入发生在 <strong>汇总之后</strong>（即先求和，再四舍五入到分），而不是逐笔四舍五入再汇总。
+            </li>
+        </ul>
+        <div class="rule-box blue">
+            <strong>📌 汇总公式：</strong><br>
+            <code>totalAmount   = CAST( SUM(Amount × 折算系数) AS DECIMAL(18,2) )</code><br>
+            <code>totalReceived = CAST( SUM(Ysje × 折算系数) AS DECIMAL(18,2) )</code><br>
+            <code>unrec         = CAST( totalAmount - totalReceived AS DECIMAL(18,2) )</code>
+        </div>
+
+        <h3 id="sec-overdraft-credit">3. 授信额度</h3>
+        <ul>
+            <li><strong>正式授信：</strong> 从 <code>CusContract</code> 取 <code>CreditAmount</code>（取 <code>MAX</code>，通常只有一个）。</li>
+            <li><strong>临时授信（C类）：</strong> 从 <code>CusCredit</code> 汇总：
+                <ul>
+                    <li>条件：<code>TempType = 'C'</code>，<code>ApproveStatus = N'结束'</code>，当前日期介于 <code>EffDate</code> 和 <code>ExpDate</code> 之间。</li>
+                    <li>按 <code>CusBcId</code>（对应合同 ID）分组求和 <code>TempCredit</code>。</li>
                 </ul>
             </li>
         </ul>
         <div class="rule-box">
-            <strong>📌 可用授信 = CreditAmount + TempCredit</strong>
+            <strong>📌 可用授信 = CreditAmount + tempCredit</strong>
         </div>
 
         <h3 id="sec-overdraft-rule">4. 统一授信规则（所有付款方式）</h3>
         <div class="rule-box blue">
-            <strong>🔄 规则变更：</strong> 所有付款方式（包括现付 <code>P</code>、月结 <code>M/M2/M3/M4</code>）<strong>不再区分</strong>，统一采用以下授信比较规则。
+            <strong>🔄 规则变更：</strong> 所有付款方式（包括现付 <code>P</code>、月结 <code>M1/M2/M3/M4</code>）<strong>不再区分</strong>，统一采用以下授信比较规则。
         </div>
 
-        <p>比较汇总未收金额 <code>Unpaid</code>（已按汇率折算）与可用授信 <code>CreditAmount + TempCredit</code>：</p>
+        <p>比较汇总未收金额 <code>unrec</code>（已按汇率折算并四舍五入）与可用授信 <code>CreditAmount + tempCredit</code>：</p>
 
         <div class="table-wrap">
             <table>
@@ -539,16 +544,16 @@
                 </thead>
                 <tbody>
                 <tr>
-                    <td><strong>所有方式</strong><br><span class="tag">P</span> <span class="tag">M</span> <span class="tag">M2</span> <span class="tag">M3</span> <span class="tag">M4</span></td>
-                    <td><strong>Unpaid &gt; 可用授信</strong></td>
-                    <td><code>OverdraftAmount = Unpaid - 可用授信</code><br><span class="tag green">若 ≤0 则无超额</span></td>
+                    <td><strong>所有方式</strong><br><span class="tag">P</span> <span class="tag">M1</span> <span class="tag">M2</span> <span class="tag">M3</span> <span class="tag">M4</span></td>
+                    <td><strong>unrec &gt; 可用授信</strong></td>
+                    <td><code>OverdraftAmount = unrec - 可用授信</code><br><span class="tag green">若 ≤0 则无超额</span></td>
                 </tr>
                 </tbody>
             </table>
         </div>
 
         <div class="rule-box green">
-            <strong>✅ 现付（P）不再特殊处理</strong>，同样参与授信额度抵扣。仅当汇总未收金额（折本位币后）超过可用授信总额时，才判定为超额。
+            <strong>✅ 现付（P）不再特殊处理</strong>，同样参与授信额度抵扣。仅当折本位币后的未收总额超过可用授信时，才判定为超额。
         </div>
     </div>
 
@@ -564,7 +569,7 @@
 
     <div class="section-card">
 
-        <p>超期针对 <strong>每一笔未收费用</strong> 分别计算。参与计算的数据同样要求存在未收金额，<strong>基于原币判断</strong>（即 <code>Amount &gt; Ysje</code>），后续的金额汇总则使用折本位币后的值（与超额部分一致）。</p>
+        <p>超期针对 <strong>每一笔未收费用</strong> 分别计算。参与计算的费用条件与超额部分类似（均基于原币未收金额判断），但超期不涉及汇率换算，仅以业务日期和账期计算结算日。</p>
 
         <h3 id="sec-overdue-paymonths">1. 获取账期类型</h3>
         <p>根据付款方式 <code>PayWayCd</code> 转换为月数（仅用于非 P 方式）：</p>
@@ -574,7 +579,7 @@
                 <thead><tr><th>付款方式</th><th>代码</th><th>月数</th></tr></thead>
                 <tbody>
                 <tr><td>现付</td><td><code>P</code></td><td>—（特殊处理）</td></tr>
-                <tr><td>月结</td><td><code>M</code></td><td>1</td></tr>
+                <tr><td>月结</td><td><code>M1</code></td><td>1</td></tr>
                 <tr><td>月结2</td><td><code>M2</code></td><td>2</td></tr>
                 <tr><td>月结3</td><td><code>M3</code></td><td>3</td></tr>
                 <tr><td>月结4</td><td><code>M4</code></td><td>4</td></tr>
@@ -586,10 +591,10 @@
         <h3 id="sec-overdue-days">2. 账期天数 &amp; 临时延期（通用）</h3>
         <ul>
             <li><strong>合同账期天数：</strong> <code>AccDays</code>（如 25 天）</li>
-            <li><strong>临时延期天数：</strong> 查询 <code>CusCredit</code>
+            <li><strong>临时延期天数（A类）：</strong> 查询 <code>CusCredit</code>
                 <ul>
                     <li>条件：<code>TempType='A'</code>，<code>ApproveStatus='结束'</code>，当前日期有效</li>
-                    <li>记为 <code>TempCredit</code>（此处表示延期天数，若不存在则为 0）</li>
+                    <li>记为 <code>TempCredit</code>（延期天数，若不存在则为 0）</li>
                 </ul>
             </li>
         </ul>
@@ -598,7 +603,7 @@
         </div>
 
         <h3 id="sec-overdue-settlement">3. 结算日（SettlementDate）计算（非 P 方式）</h3>
-        <p>适用于 <code>M/M2/M3/M4</code> 及其他非 P 方式，沿用原有复杂逻辑。</p>
+        <p>适用于 <code>M1/M2/M3/M4</code> 及其他非 P 方式，沿用原有复杂逻辑。</p>
 
         <h4>Step 1 — 计算 Y</h4>
         <div class="inline-code-block">
@@ -673,31 +678,36 @@
 
     <div class="section-card">
         <div class="flow">
-            <span class="dim">费用（CostItem）</span>
+            <span class="dim">费用（CostItem）关联虚拟账期合同</span>
             │
             ▼
-            <span class="highlight">过滤（原币比较）：</span>
-            Ioid=1
-            Amount &gt; Ysje  （直接原币判断）
-            非 Company 主体
+            <span class="highlight">超额统计（汇总）</span>
             │
-            ▼
-            <span class="highlight">统计全部未收金额 (Unpaid)</span>
-            每笔：折后费用 = ROUND(Amount*ChgRate,2) ，折后已收 = ROUND(Ysje*ChgRate,2)
-            Unpaid = Σ(折后费用 - 折后已收)
+            获取最新汇率（ExRate，按EffDate降序，DestCurrcd='CNY'）
             │
-            ▼
-            Unpaid &gt; 正式授信 + 临时授信 ?
+            计算每笔折算系数：
+            · 若 Currcd='CNY' → 1
+            · 若 ChgSign='*' → ChgRate
+            · 若 ChgSign='/' → 1/ChgRate
             │
-            ├─ 是 → <span class="highlight">超额 (Overdraft=1)</span>  金额 = Unpaid - 授信
+            分别汇总：totalAmount = Σ(Amount × 系数)
+            totalReceived = Σ(Ysje × 系数)
+            unrec = CAST(totalAmount - totalReceived AS DECIMAL(18,2))
+            │
+            正式授信 = CreditAmount（来自虚拟账期合同）
+            临时授信（C类） = Σ(TempCredit)，条件 TempType='C' 且有效
+            │
+            unrec &gt; 正式授信 + 临时授信 ?
+            │
+            ├─ 是 → <span class="highlight">超额 (Overdraft=1)</span>  金额 = unrec - 授信
             └─ 否 → 正常 (Overdraft=0)
             │
             ▼
-            <span class="highlight">超期计算</span>（费用明细逐笔，基于原币筛选）
+            <span class="highlight">超期计算</span>（逐笔，基于原币未收判断）
             │
-            ├─ 付款方式 = <span class="highlight">P</span>  →  结算日 = BizDate + AccDays + TempCredit（延期）
+            ├─ 付款方式 = <span class="highlight">P</span>  →  结算日 = BizDate + AccDays + TempCredit（A类）
             │
-            └─ 付款方式 = M/M2/M3/M4  →  沿用原有复杂计算（基于BizDate月份换算）
+            └─ 付款方式 = M1/M2/M3/M4  →  沿用原有复杂计算（基于BizDate月份换算）
             │
             ▼
             今天 &gt; 结算日 ?
@@ -706,7 +716,7 @@
             └─ 否 → Overdue = 0
 
             <span style="display:block; margin-top: 0.8rem; padding-top: 0.8rem; border-top: 1px dashed #94a3b8;" class="dim">
-                ⚡ 修正（v2.4）：筛选条件恢复为原币比较（Amount > Ysje），汇率折算仅用于金额统计。
+                ⚡ 更新（v2.5）：超额部分完全匹配最新 SQL —— 采用 ExRate 的 ChgSign 乘除规则、汇总后 CAST 四舍五入、C类临时授信 CTE 汇总。
                 </span>
         </div>
 
@@ -715,7 +725,11 @@
         </div>
 
         <div class="rule-box green" style="margin-top:0.8rem;">
-            <strong>📌 本次更新（v2.4）</strong> · 明确筛选阶段使用原币金额（<code>Amount &gt; Ysje</code>），仅在汇总计算时应用汇率折算与四舍五入，确保逻辑与 SQL 实现完全吻合。
+            <strong>📌 本次更新（v2.5）</strong> · 根据提供的 SQL 精确调整超额计算：<br>
+            · 汇率换算支持 <code>ChgSign</code>（乘或除）<br>
+            · 四舍五入发生在汇总后（<code>CAST</code> 到 DECIMAL(18,2)）<br>
+            · 临时授信（C类）从 <code>CusCredit</code> 按合同汇总<br>
+            · 未强制过滤 <code>Ioid=1</code> 或 <code>Amount &gt; Ysje</code>（以 SQL 为准）
         </div>
     </div>
 
@@ -723,8 +737,8 @@
 
     <!-- ===== FOOTER ===== -->
     <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:0.5rem; font-size:0.9rem; color:#94a3b8; padding-top:0.5rem;">
-        <span>📅 基于 SQL 实现整理 · 2026-07-10</span>
-        <span>虚拟账期合同风控规则 v2.4（原币筛选）</span>
+        <span>📅 基于 SQL 实现整理 · 2026-07-14</span>
+        <span>虚拟账期合同风控规则 v2.5（超额SQL精确）</span>
     </div>
 
 </div>
